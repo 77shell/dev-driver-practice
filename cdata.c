@@ -26,21 +26,38 @@ struct cdata_t {
 	char *buf;
 	unsigned int index;
 	wait_queue_head_t write_queue;
+	struct work_struct work;
 };
+
+
+static void flush_data(struct work_struct *pWork)
+{
+	struct cdata_t *cdata;
+	int i;
+
+	cdata = container_of(pWork, struct cdata_t, work);
+	printk("%s: %s", __func__, cdata->buf);
+	cdata->index = 0;
+	for (i=0; i<BUFSIZE; i++)
+		cdata->buf[i] = 0;
+}
+
 
 static int cdata_open(struct inode *inode, struct file *filp)
 {
-	struct cdata_t *p;
+	struct cdata_t *cdata;
 	int i;
 
-	p = kmalloc(sizeof(struct cdata_t), GFP_KERNEL);
-	filp->private_data = p;
-	p->buf = kmalloc(BUFSIZE, GFP_KERNEL);
-	p->index = 0;
+	cdata = kmalloc(sizeof(struct cdata_t), GFP_KERNEL);
+	filp->private_data = cdata;
+	cdata->buf = kmalloc(BUFSIZE, GFP_KERNEL);
+	cdata->index = 0;
 	for(i=0; i<BUFSIZE; i++)
-		p->buf[i] = 0;
+		cdata->buf[i] = 0;
 
-	init_waitqueue_head(&p->write_queue);
+	init_waitqueue_head(&cdata->write_queue);
+	INIT_WORK(&cdata->work, flush_data);
+	
 	printk(KERN_ALERT "%s: cdata in open: filp = %p\n", __func__, filp);
 	return 0;
 }
@@ -78,7 +95,15 @@ repeat:
 		 */
 		interrupt_sleep_on(&cdata->write_queue);
 #else
-		wait_event_interruptible(cdata->write_queue, cdata->index + count <= BUFSIZE);
+
+	        schedule_work(&cdata->work);
+		/* 
+		 * How does the event be checked? and how long?
+		 * 
+		 * It was checked after calling wake_up().
+		 *
+		 */
+		wait_event_interruptible(cdata->write_queue, cdata->index + count < BUFSIZE);
 #endif
 		goto repeat;
 

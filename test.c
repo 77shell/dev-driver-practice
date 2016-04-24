@@ -14,17 +14,17 @@ int main(void)
 	strcpy(str, "OH NO! ");
 
 	child = fork();
+	printf("Child: %d\n", child);
 
 	fd = open("/dev/cdata", O_RDWR);
 
-
 	ioctl(fd, IOCTL_SYNC, 1);
 
-	for(i=0; i<30; i++)
+	for(i=0; i<100; i++)
 		write(fd, (void *)str, strlen(str));
 	
-	ioctl(fd, IOCTL_SYNC, 3);
-	ioctl(fd, IOCTL_EMPTY, 2);
+	//ioctl(fd, IOCTL_SYNC, 3);
+	//ioctl(fd, IOCTL_EMPTY, 2);
 	close(fd);
 
 	sleep(1);
