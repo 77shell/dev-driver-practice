@@ -52,7 +52,7 @@ static int cdata_open(struct inode *inode, struct file *filp)
 	filp->private_data = cdata;
 	cdata->buf = kmalloc(BUFSIZE, GFP_KERNEL);
 	cdata->index = 0;
-	for(i=0; i<BUFSIZE; i++)
+	for (i=0; i<BUFSIZE; i++)
 		cdata->buf[i] = 0;
 
 	init_waitqueue_head(&cdata->write_queue);
@@ -75,7 +75,7 @@ static ssize_t cdata_write(struct file *filp, const char __user *buf, size_t cou
 repeat:
 	data_index = cdata->index;
 
-	if(data_index + count >= BUFSIZE) {
+	if (data_index + count >= BUFSIZE) {
 #if 0
 		/*
 		 * Traditional way of doing process scheduling
@@ -115,7 +115,7 @@ repeat:
 	
 	copy_from_user(&file_buf[data_index], buf, count);
 	cdata->index += count;
-	printk(KERN_ALERT "%s \n", __func__);
+	printk(KERN_ALERT "%s: write %d-byte \n", __func__, count);
 	return count;
 }
 
@@ -133,7 +133,7 @@ static long cdata_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case IOCTL_EMPTY:
 		printk(KERN_ALERT "%s empty: arg: %d\n", __func__, arg);
-		for(i=0; i<BUFSIZE; i++)
+		for (i=0; i<BUFSIZE; i++)
 			buf[i] = 0;
 		p->index = 0;
 		return 0;
