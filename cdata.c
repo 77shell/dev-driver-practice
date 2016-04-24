@@ -13,6 +13,7 @@
 #include <linux/miscdevice.h>
 #include <linux/input.h>
 #include <linux/wait.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/slab.h>
@@ -40,6 +41,7 @@ static void flush_data(struct work_struct *pWork)
 	cdata->index = 0;
 	for (i=0; i<BUFSIZE; i++)
 		cdata->buf[i] = 0;
+	wake_up(&cdata->write_queue);
 }
 
 
@@ -172,6 +174,7 @@ static int cdata_close(struct inode *inode, struct file *filp)
 
 	p = filp->private_data;
 	printk(KERN_INFO "%s: Free cdata %s\n", __func__, p->buf);
+
 	kfree(p->buf);
 	kfree(p);
 	return 0;
@@ -186,18 +189,86 @@ static struct file_operations cdata_fops = {
 	release:        cdata_close
 };
 
+static struct miscdevice cdata_miscdev = {
+	.minor = 199, /* Reference to miscdevice.h */
+	.name = "cdata-misc",
+	.fops = &cdata_fops,
+	/* .nodename = "cdata" */
+};
+
+
+
+
+static int cdata_plat_probe(struct platform_device *dev)
+{
+	int ret;
+	
+	ret = misc_register(&cdata_miscdev);
+	if(ret < 0)
+		printk(KERN_ALERT "%s: registering failed\n", __func__);
+	
+	printk(KERN_ALERT "%s: register MISC successful\n", __func__);
+	return ret;
+}
+
+
+static int cdata_plat_remove(struct platform_device *dev)
+{
+	misc_deregister(&cdata_miscdev);
+	printk(KERN_ALERT "%s: cdata was unregisted.\n", __func__);
+	return 0;
+}
+
+
+static struct platform_driver cdata_plat_driver = {
+	.driver = {
+		.name = "cdata",
+		.owner = THIS_MODULE
+	},
+	.probe = cdata_plat_probe,
+	.remove = cdata_plat_remove
+};
+
+
 void cdata_init_module(void)
 {
+#if 0
 	if (register_chrdev(CDATA_MAJOR, "cdata", &cdata_fops)) {
 		printk(KERN_ALERT "cdata module: can't registered.\n");
 	}
+#endif
+
+#if 0
+	int ret;
+	
+	ret = misc_register(&cdata_miscdev);
+	if(ret < 0)
+		printk(KERN_ALERT "%s: registering failed\n", __func__);
+	
+	printk(KERN_ALERT "%s: register MISC successful\n", __func__);
+#endif
+
+	platform_driver_register(&cdata_plat_driver);
+	printk(KERN_ALERT "%s: register platform driver successful\n", __func__);
 }
+
 
 void cdata_cleanup_module(void)
 {
+#if 0
 	unregister_chrdev(CDATA_MAJOR, "cdata");
 	printk(KERN_ALERT "cdata module: unregisterd.\n");
+#endif
+	
+#if 0
+	misc_deregister(&cdata_miscdev);
+	printk(KERN_ALERT "%s: cdata was unregisted.\n");
+#endif
+	
+	platform_driver_unregister(&cdata_plat_driver);
+	printk(KERN_ALERT "%s: platform driver was unregisted.\n");
 }
+
 
 module_init(cdata_init_module);
 module_exit(cdata_cleanup_module);

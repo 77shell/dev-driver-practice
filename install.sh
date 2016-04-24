@@ -14,15 +14,18 @@ then
     exit 1
 fi
 
-if ! [ -e /dev/cdata ]
-then
-    mknod /dev/cdata c 121 0
-    echo -e "\033[32mMaking device node\033[0m"
+my_mknod()
+{
+    if ! [ -e /dev/cdata ]
+    then
+	mknod /dev/cdata c 121 0
+	echo -e "\033[32mMaking device node\033[0m"
 
-    if ! [ -e /dev/cdata ]; then
-	echo -e "\033[31mMake cdata failed~\033[0m"
+	if ! [ -e /dev/cdata ]; then
+	    echo -e "\033[31mMake cdata failed~\033[0m"
+	fi
     fi
-fi
+}
 
 rmmod cdata
 
