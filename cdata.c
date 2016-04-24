@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
 #include <linux/input.h>
+#include <linux/wait.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/slab.h>
@@ -24,6 +25,7 @@
 struct cdata_t {
 	char *buf;
 	unsigned int index;
+	wait_queue_head_t write_queue;
 };
 
 static int cdata_open(struct inode *inode, struct file *filp)
@@ -37,7 +39,8 @@ static int cdata_open(struct inode *inode, struct file *filp)
 	p->index = 0;
 	for(i=0; i<BUFSIZE; i++)
 		p->buf[i] = 0;
-	
+
+	init_waitqueue_head(&p->write_queue);
 	printk(KERN_ALERT "%s: cdata in open: filp = %p\n", __func__, filp);
 	return 0;
 }
@@ -45,17 +48,40 @@ static int cdata_open(struct inode *inode, struct file *filp)
 
 static ssize_t cdata_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
-	struct cdata_t *p;
+	struct cdata_t *cdata;
 	char *file_buf;
 	unsigned int data_index;
 
-	p = filp->private_data;
-	file_buf = p->buf;
-	data_index = p->index;
+	cdata = filp->private_data;
+	file_buf = cdata->buf;
         
+repeat:
+	data_index = cdata->index;
+
 	if(data_index + count >= BUFSIZE) {
+#if 0
+		/*
+		 * Traditional way of doing process scheduling
+		 *    1. Change current process state
+		 *    2. Put to wait-queue
+		 *    3. Call scheduler
+		 */
 		current->state = TASK_UNINTERRUPTIBLE;
+		add_wait_queue();
 		schedule();
+#endif
+
+#if 0
+		/*
+		 * Upon three statements can be replaced by following statement.
+		 * But this is not an atomic operaton, so it could result some problems.
+		 */
+		interrupt_sleep_on(&cdata->write_queue);
+#else
+		wait_event_interruptible(cdata->write_queue, cdata->index + count <= BUFSIZE);
+#endif
+		goto repeat;
+
 		/* Don't return -ENOTTY
 		 * It's inappropriate design.
 		 */
@@ -63,7 +89,7 @@ static ssize_t cdata_write(struct file *filp, const char __user *buf, size_t cou
 	}
 	
 	copy_from_user(&file_buf[data_index], buf, count);
-	p->index += count;
+	cdata->index += count;
 	printk(KERN_ALERT "%s \n", __func__);
 	return count;
 }

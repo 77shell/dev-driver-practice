@@ -22,5 +22,5 @@ if ! insmod cdata.ko; then
     exit 1
 fi
 
-./test
-dmesg | tail -n 18
+#./test
+#dmesg | tail -n 18
