@@ -1,6 +1,6 @@
-obj-m := cdata.o
+obj-m := cdata.o cdata_plat_dev.o
 
-KDIR := /usr/src/linux-headers-4.2.0-35-generic
+KDIR := /usr/src/linux-headers-$(shell uname -r)
 PWD := $(shell pwd)
 
 default:

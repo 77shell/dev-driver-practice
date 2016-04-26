@@ -5,7 +5,9 @@ then
     echo -e "\033[32mMake cdata failed~\033[0m"
     exit 1
 else
-    echo -e "\033[33mMake cdata Okay~~\033[0m"
+    echo -e "\033[33mMake cdata Okay~~"
+    ls -l *.ko
+    echo -e "\033[0m"
 fi
 
 if ! make test
@@ -27,13 +29,26 @@ my_mknod()
     fi
 }
 
+
+dmesg -C
+
 rmmod cdata
+rmmod cdata_plat_dev
+
+
+if ! insmod cdata_plat_dev.ko; then
+    echo -e "\033[32mInstall driver: cdata_plat_dev failed~\033[0m"
+fi
 
 if ! insmod cdata.ko; then
     echo -e "\033[32mInstall driver: cdata failed~\033[0m"
     exit 1
 fi
 
-dmesg -C
+dmesg | tail -n 40
+
+lsmod | grep cdata
+tree -hfC -H . --du -o dev.html /dev
+
 #./test
 #dmesg | tail -n 18

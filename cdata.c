@@ -181,7 +181,8 @@ static int cdata_close(struct inode *inode, struct file *filp)
 }
 
 
-static struct file_operations cdata_fops = {	
+static struct file_operations cdata_fops = {
+owner: THIS_MODULE,
 	open:		cdata_open,
 	write:          cdata_write,
 //	compat_ioctl:   cdata_ioctl,
@@ -197,18 +198,18 @@ static struct miscdevice cdata_miscdev = {
 };
 
 
-
-
 static int cdata_plat_probe(struct platform_device *dev)
 {
 	int ret;
 	
 	ret = misc_register(&cdata_miscdev);
-	if(ret < 0)
+	if(ret < 0) {
 		printk(KERN_ALERT "%s: registering failed\n", __func__);
+		return -1;
+	}
 	
 	printk(KERN_ALERT "%s: register MISC successful\n", __func__);
-	return ret;
+	return 0;
 }
 
 
