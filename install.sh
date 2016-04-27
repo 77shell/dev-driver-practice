@@ -16,21 +16,20 @@ fi
 
 if ! [ -e /dev/cdata ]
 then
-    mknod /dev/cdata c 121 0
+    sudo mknod /dev/cdata c 121 0
     echo -e "\033[32mMaking device node\033[0m"
 
     if ! [ -e /dev/cdata ]; then
 	echo -e "\033[31mMake cdata failed~\033[0m"
+	exit 1
     fi
+    sudo chmod 666 /dev/cdata
 fi
 
-rmmod cdata
+sudo rmmod cdata
 
-if ! insmod cdata.ko; then
+if ! sudo insmod cdata.ko; then
     echo -e "\033[32mInstall driver: cdata failed~\033[0m"
     exit 1
 fi
 
-dmesg -C
-#./test
-#dmesg | tail -n 18
