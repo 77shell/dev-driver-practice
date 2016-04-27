@@ -50,15 +50,20 @@ static int cdata_open(struct inode *inode, struct file *filp)
 	struct cdata_t *cdata;
 	int i;
 
+	/* Allocate memory to private_data */
 	cdata = kmalloc(sizeof(struct cdata_t), GFP_KERNEL);
 	filp->private_data = cdata;
 	cdata->buf = kmalloc(BUFSIZE, GFP_KERNEL);
-	cdata->index = 0;
-	for (i=0; i<BUFSIZE; i++)
-		cdata->buf[i] = 0;
 
-	init_waitqueue_head(&cdata->write_queue);
-	INIT_WORK(&cdata->work, flush_data);
+	/* Init cdata_t content */
+	{
+		cdata->index = 0;
+		for (i=0; i<BUFSIZE; i++)
+			cdata->buf[i] = 0;
+
+		init_waitqueue_head(&cdata->write_queue);
+		INIT_WORK(&cdata->work, flush_data);
+	}
 	
 	printk(KERN_ALERT "%s: cdata in open: filp = %p\n", __func__, filp);
 	return 0;
@@ -134,7 +139,7 @@ static long cdata_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case IOCTL_EMPTY:
-		printk(KERN_ALERT "%s empty: arg: %d\n", __func__, arg);
+		printk(KERN_ALERT "%s: empty: arg: %d\n", __func__, arg);
 		for (i=0; i<BUFSIZE; i++)
 			buf[i] = 0;
 		p->index = 0;
@@ -182,7 +187,7 @@ static int cdata_close(struct inode *inode, struct file *filp)
 
 
 static struct file_operations cdata_fops = {
-owner: THIS_MODULE,
+        owner:          THIS_MODULE,
 	open:		cdata_open,
 	write:          cdata_write,
 //	compat_ioctl:   cdata_ioctl,
@@ -193,7 +198,7 @@ owner: THIS_MODULE,
 static struct miscdevice cdata_miscdev = {
 	.minor = 199, /* Reference to miscdevice.h */
 	.name = "cdata-misc",
-	.fops = &cdata_fops,
+	.fops = &cdata_fops
 	/* .nodename = "cdata" */
 };
 
@@ -231,11 +236,11 @@ static struct platform_driver cdata_plat_driver = {
 };
 
 
-void cdata_init_module(void)
+int __init cdata_init_module(void)
 {
 #if 0
 	if (register_chrdev(CDATA_MAJOR, "cdata", &cdata_fops)) {
-		printk(KERN_ALERT "cdata module: can't registered.\n");
+		printk(KERN_ALERT "%s: cdata module: can't registered.\n", __func__);
 	}
 #endif
 
@@ -251,10 +256,11 @@ void cdata_init_module(void)
 
 	platform_driver_register(&cdata_plat_driver);
 	printk(KERN_ALERT "%s: register platform driver successful\n", __func__);
+	return 0;
 }
 
 
-void cdata_cleanup_module(void)
+void __exit cdata_cleanup_module(void)
 {
 #if 0
 	unregister_chrdev(CDATA_MAJOR, "cdata");
@@ -267,7 +273,7 @@ void cdata_cleanup_module(void)
 #endif
 	
 	platform_driver_unregister(&cdata_plat_driver);
-	printk(KERN_ALERT "%s: platform driver was unregisted.\n");
+	printk(KERN_ALERT "%s: platform driver was unregisted.\n", __func__);
 }
 
 

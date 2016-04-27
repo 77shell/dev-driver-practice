@@ -1,5 +1,73 @@
 #!/bin/bash
 
+
+declare -a KO=(
+    cdata_plat_dev.ko
+    cdata.ko
+)
+
+
+install_modules()
+{
+    sudo dmesg -C
+    
+    for i in ${KO[@]}
+    do
+	! sudo insmod $i \
+	    && echo "Install driver: $i failed~"
+    done
+    
+    lsmod | grep cdata
+    echo -e "\033[33mInstall modules complete.\033[0m"
+    dmesg | tail -n 40
+    tree -hfC -H . --du -o dev.html /dev
+}
+
+
+uninstall_modules()
+{
+    for i in ${KO[@]}
+    do
+	! sudo rmmod $i \
+	    && echo "Uninstall driver: $i failed~"
+    done
+    echo -e "\033[33mUninstall modules\033[0m"
+}
+
+
+clean_modules()
+{
+    for i in ${KO[@]}
+    do
+	! rm $i
+    done
+    echo -e "\033[33mDelete modules\033[0m"
+}
+
+
+case $1 in
+    ins)
+        install_modules
+	exit 0
+	;;
+
+    rm)
+	uninstall_modules
+	exit 0
+	;;
+
+    clean)
+	clean_modules
+	;;
+
+    --help)
+	echo -e "\033[33m\n\t./install.sh [ ins | rm ]\n\033[0m"
+	exit 0
+	;;
+esac
+
+
+
 if ! make
 then
     echo -e "\033[32mMake cdata failed~\033[0m"
@@ -28,27 +96,3 @@ my_mknod()
 	fi
     fi
 }
-
-
-dmesg -C
-
-rmmod cdata
-rmmod cdata_plat_dev
-
-
-if ! insmod cdata_plat_dev.ko; then
-    echo -e "\033[32mInstall driver: cdata_plat_dev failed~\033[0m"
-fi
-
-if ! insmod cdata.ko; then
-    echo -e "\033[32mInstall driver: cdata failed~\033[0m"
-    exit 1
-fi
-
-dmesg | tail -n 40
-
-lsmod | grep cdata
-tree -hfC -H . --du -o dev.html /dev
-
-#./test
-#dmesg | tail -n 18
