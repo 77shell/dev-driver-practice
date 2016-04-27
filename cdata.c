@@ -40,6 +40,7 @@ static void flush_data(struct work_struct *pWork)
 	cdata->index = 0;
 	for (i=0; i<BUFSIZE; i++)
 		cdata->buf[i] = 0;
+	wake_up(&cdata->write_queue);
 }
 
 
@@ -179,6 +180,7 @@ static int cdata_close(struct inode *inode, struct file *filp)
 
 
 static struct file_operations cdata_fops = {	
+        owner:          THIS_MODULE,
 	open:		cdata_open,
 	write:          cdata_write,
 //	compat_ioctl:   cdata_ioctl,
