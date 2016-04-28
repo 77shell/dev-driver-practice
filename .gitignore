@@ -1,6 +1,13 @@
 *.ko
 *.o
 *.*~
-*.mod.c
-*.mod.o
-.*.*.cmd
+cdata.mod.c
+.cdata.ko.cmd
+.cdata.mod.o.cmd
+.cdata.o.cmd
+.tmp_versions/cdata.mod
+Module.symvers
+modules.order
+test
+dev.html
+.#*
