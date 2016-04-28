@@ -23,8 +23,10 @@ int main(void)
 
 	ioctl(fd, IOCTL_SYNC, 1);
 
-	for(i=0; i<100; i++)
+	for(i=0; i<100; i++) {
 		write(fd, (void *)str, strlen(str));
+		sleep(1);
+	}
 	
 	//ioctl(fd, IOCTL_SYNC, 3);
 	//ioctl(fd, IOCTL_EMPTY, 2);
