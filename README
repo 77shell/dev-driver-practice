@@ -1,0 +1,30 @@
+
+# Build two kernel objects
+#  > cdata_plat_dev.ko
+#  > cdata.ko
+
+$ ./built.sh
+
+
+# Install kernel module
+
+$ ./built.sh ins
+
+
+# Remove kernel module
+
+$ ./built.sh rm
+
+
+# Device node
+
+$ /dev/cdata-misc
+
+
+# Run test program
+
+$ ./test
+
+> Use dmesg to see the result
+
+  

@@ -1,3 +1,18 @@
+/**************************************************************
+ *  Author        :  
+ *                    ..  ..
+ *                   / | / |            ~~
+ *                  /  |/  |    /| \ /  ~
+ *                 /   | ~ |   /.|  x  ~
+ *                / ~      |~ /  l / L
+ *
+ *  Description :  Demostrate device driver
+ *
+ *
+ *  History:     ysh  4-23-2016          Create
+ *************************************************************/
+
+
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -17,17 +32,27 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/slab.h>
+#include <linux/timer.h>
 #include "cdata_ioctl.h"
 
 
 #define CDATA_MAJOR 121
 #define BUFSIZE     32
+#define TIMEOUT_VALUE (1*HZ)
+
+//#define __WORK_QUEUE
+#define __TIMER
+
+//#define __MKNOD
+#define __PLAT_DRIVER
+
 
 struct cdata_t {
 	char *buf;
 	unsigned int index;
 	wait_queue_head_t write_queue;
 	struct work_struct work;
+	struct timer_list timer;
 };
 
 
@@ -41,6 +66,16 @@ static void flush_data(struct work_struct *pWork)
 	cdata->index = 0;
 	for (i=0; i<BUFSIZE; i++)
 		cdata->buf[i] = 0;
+	wake_up(&cdata->write_queue);
+}
+
+
+static void timer_handle(unsigned long data)
+{
+	struct cdata_t *cdata = (struct cdata_t*)data;
+
+	printk(KERN_ALERT "%s: %s", __func__, cdata->buf);
+	cdata->index = 0;
 	wake_up(&cdata->write_queue);
 }
 
@@ -63,6 +98,18 @@ static int cdata_open(struct inode *inode, struct file *filp)
 
 		init_waitqueue_head(&cdata->write_queue);
 		INIT_WORK(&cdata->work, flush_data);
+	}
+
+	init_waitqueue_head(&cdata->write_queue);
+	INIT_WORK(&cdata->work, flush_data);
+
+	/* Init timer */
+	{
+		struct timer_list *pTimer;
+		pTimer = &cdata->timer;
+		init_timer(pTimer);
+		pTimer->function = timer_handle;
+		pTimer->data = (unsigned long)cdata;
 	}
 	
 	printk(KERN_ALERT "%s: cdata in open: filp = %p\n", __func__, filp);
@@ -101,9 +148,17 @@ repeat:
 		 * But this is not an atomic operaton, so it could result some problems.
 		 */
 		interrupt_sleep_on(&cdata->write_queue);
-#else
+#endif
 
+#ifdef __WORK_QUEUE
+		
 	        schedule_work(&cdata->work);
+		
+#elif defined __TIMER
+		
+		cdata->timer.expires = jiffies + TIMEOUT_VALUE;
+		add_timer(&cdata->timer);
+#endif
 		/* 
 		 * How does the event be checked? and how long?
 		 * 
@@ -111,7 +166,7 @@ repeat:
 		 *
 		 */
 		wait_event_interruptible(cdata->write_queue, cdata->index + count < BUFSIZE);
-#endif
+
 		goto repeat;
 
 		/* Don't return -ENOTTY
@@ -122,7 +177,7 @@ repeat:
 	
 	copy_from_user(&file_buf[data_index], buf, count);
 	cdata->index += count;
-	printk(KERN_ALERT "%s: write %d-byte \n", __func__, count);
+	printk(KERN_ALERT "%s: write %d-byte, buffer-index: %d\n", __func__, count, cdata->index);
 	return count;
 }
 
@@ -161,8 +216,18 @@ static long cdata_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 static int cdata_close(struct inode *inode, struct file *filp)
 {
 	struct cdata_t *p;
-
+	int ret;
+	
 	p = filp->private_data;
+
+#ifdef __TIMER
+	ret = del_timer_sync(&p->timer);
+	if (ret == 0)
+		printk(KERN_ALERT "%s: timer has already been removed.\n", __func__);
+	else if (ret > 0)
+		printk(KERN_ALERT "%s: timer has been removed before closing.\n", __func__);
+#endif
+	
 	printk(KERN_INFO "%s: Free cdata %s\n", __func__, p->buf);
 
 	kfree(p->buf);
@@ -186,7 +251,6 @@ static struct miscdevice cdata_miscdev = {
 	.fops = &cdata_fops
 	/* .nodename = "cdata" */
 };
-
 
 static int cdata_plat_probe(struct platform_device *dev)
 {
@@ -223,7 +287,7 @@ static struct platform_driver cdata_plat_driver = {
 
 int __init cdata_init_module(void)
 {
-#if 0
+#ifdef __MKNOD
 	if (register_chrdev(CDATA_MAJOR, "cdata", &cdata_fops)) {
 		printk(KERN_ALERT "%s: cdata module: can't registered.\n", __func__);
 	}
@@ -239,7 +303,10 @@ int __init cdata_init_module(void)
 	printk(KERN_ALERT "%s: register MISC successful\n", __func__);
 #endif
 
+#ifdef __PLAT_DRIVER
 	platform_driver_register(&cdata_plat_driver);
+#endif
+
 	printk(KERN_ALERT "%s: register platform driver successful\n", __func__);
 	return 0;
 }
@@ -247,7 +314,7 @@ int __init cdata_init_module(void)
 
 void __exit cdata_cleanup_module(void)
 {
-#if 0
+#ifdef __MKNOD
 	unregister_chrdev(CDATA_MAJOR, "cdata");
 	printk(KERN_ALERT "cdata module: unregisterd.\n");
 #endif
@@ -257,8 +324,10 @@ void __exit cdata_cleanup_module(void)
 	printk(KERN_ALERT "%s: cdata was unregisted.\n");
 #endif
 	
+#ifdef __PLAT_DRIVER
 	platform_driver_unregister(&cdata_plat_driver);
 	printk(KERN_ALERT "%s: platform driver was unregisted.\n", __func__);
+#endif
 }
 
 
