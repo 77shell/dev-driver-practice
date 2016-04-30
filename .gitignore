@@ -3,4 +3,10 @@
 *.*~
 *.mod.c
 *.mod.o
-.*.*.cmd
+.cdata.ko.cmd
+.cdata.mod.o.cmd
+.cdata.o.cmd
+.gitignore~
+.tmp_versions/cdata.mod
+modules.order
+test
