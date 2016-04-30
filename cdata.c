@@ -149,21 +149,6 @@ static long cdata_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		printk(KERN_ALERT "%s sync: Buffer content: %s\n", __func__, buf);
 		return 0;
 
-#if 0
-	case IOCTL_NAME:
-		msg = "IOCTL_NAME";
-		printk(KERN_ALERT "%s: %s\n", __func__, (char *)arg);
-		return 0;
-#endif
-
-#if 0
-	case IOCTL_WRITE:
-		strcpy(p->buf + p->index, (char*)arg);
-		p->index += strlen((char*)arg);
-		printk(KERN_ALERT "%s, write: %s, index: %d\n", __func__, (char*)p->buf, p->index);
-		return 0;
-#endif
-
 	default:
 		msg = "Unknow command";
 		return -ENOTTY;

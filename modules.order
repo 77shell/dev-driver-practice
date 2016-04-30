@@ -1,2 +1,2 @@
-kernel//home/max/remote/asus-rs700-e7/src/dev-driver-practice/cdata.ko
-kernel//home/max/remote/asus-rs700-e7/src/dev-driver-practice/cdata_plat_dev.ko
+kernel//home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata.ko
+kernel//home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata_plat_dev.ko

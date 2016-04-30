@@ -1,9 +1,8 @@
-cmd_/home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cdata.mod.o := gcc -Wp,-MD,/home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/.cdata.mod.o.d  -nostdinc -isystem /usr/lib/gcc/i686-linux-gnu/4.8/include  -I./arch/x86/include -Iarch/x86/include/generated/uapi -Iarch/x86/include/generated  -Iinclude -I./arch/x86/include/uapi -Iarch/x86/include/generated/uapi -I./include/uapi -Iinclude/generated/uapi -include ./include/linux/kconfig.h -Iubuntu/include  -D__KERNEL__ -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -m32 -msoft-float -mregparm=3 -freg-struct-return -fno-pic -mpreferred-stack-boundary=2 -march=i686 -mtune=generic -maccumulate-outgoing-args -Wa,-mtune=generic32 -ffreestanding -DCONFIG_AS_SSSE3=1 -DCONFIG_AS_CRC32=1 -DCONFIG_AS_AVX=1 -DCONFIG_AS_AVX2=1 -pipe -Wno-sign-compare -fno-asynchronous-unwind-tables -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -Wframe-larger-than=1024 -fstack-protector -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -pg -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(cdata.mod)"  -D"KBUILD_MODNAME=KBUILD_STR(cdata)" -DMODULE  -c -o /home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cdata.mod.o /home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cdata.mod.c
+cmd_/home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata_plat_dev.o := gcc -Wp,-MD,/home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/.cdata_plat_dev.o.d  -nostdinc -isystem /usr/lib/gcc/i686-linux-gnu/4.8/include  -I./arch/x86/include -Iarch/x86/include/generated/uapi -Iarch/x86/include/generated  -Iinclude -I./arch/x86/include/uapi -Iarch/x86/include/generated/uapi -I./include/uapi -Iinclude/generated/uapi -include ./include/linux/kconfig.h -Iubuntu/include  -D__KERNEL__ -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -std=gnu89 -m32 -msoft-float -mregparm=3 -freg-struct-return -fno-pic -mpreferred-stack-boundary=2 -march=i686 -mtune=generic -maccumulate-outgoing-args -Wa,-mtune=generic32 -ffreestanding -DCONFIG_AS_SSSE3=1 -DCONFIG_AS_CRC32=1 -DCONFIG_AS_AVX=1 -DCONFIG_AS_AVX2=1 -pipe -Wno-sign-compare -fno-asynchronous-unwind-tables -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -fno-delete-null-pointer-checks -O2 --param=allow-store-data-races=0 -Wframe-larger-than=1024 -fstack-protector -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -pg -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -DMODULE  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(cdata_plat_dev)"  -D"KBUILD_MODNAME=KBUILD_STR(cdata_plat_dev)" -c -o /home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/.tmp_cdata_plat_dev.o /home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata_plat_dev.c
 
-source_/home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cdata.mod.o := /home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cdata.mod.c
+source_/home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata_plat_dev.o := /home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata_plat_dev.c
 
-deps_/home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cdata.mod.o := \
-    $(wildcard include/config/module/unload.h) \
+deps_/home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata_plat_dev.o := \
   include/linux/module.h \
     $(wildcard include/config/modules.h) \
     $(wildcard include/config/sysfs.h) \
@@ -18,6 +17,7 @@ deps_/home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cd
     $(wildcard include/config/event/tracing.h) \
     $(wildcard include/config/ftrace/mcount/record.h) \
     $(wildcard include/config/livepatch.h) \
+    $(wildcard include/config/module/unload.h) \
     $(wildcard include/config/constructors.h) \
     $(wildcard include/config/debug/set/module/ronx.h) \
   include/linux/list.h \
@@ -587,9 +587,31 @@ deps_/home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cd
     $(wildcard include/config/have/mod/arch/specific.h) \
     $(wildcard include/config/modules/use/elf/rel.h) \
     $(wildcard include/config/modules/use/elf/rela.h) \
-  include/linux/vermagic.h \
-  include/generated/utsrelease.h \
+  include/linux/platform_device.h \
+    $(wildcard include/config/suspend.h) \
+    $(wildcard include/config/hibernate/callbacks.h) \
+  include/linux/device.h \
+    $(wildcard include/config/debug/devres.h) \
+    $(wildcard include/config/pinctrl.h) \
+    $(wildcard include/config/dma/cma.h) \
+    $(wildcard include/config/of.h) \
+    $(wildcard include/config/devtmpfs.h) \
+    $(wildcard include/config/sysfs/deprecated.h) \
+  include/linux/klist.h \
+  include/linux/pinctrl/devinfo.h \
+  include/linux/pinctrl/consumer.h \
+  include/linux/seq_file.h \
+  include/linux/pinctrl/pinctrl-state.h \
+  include/linux/ratelimit.h \
+  arch/x86/include/asm/device.h \
+    $(wildcard include/config/x86/dev/dma/ops.h) \
+    $(wildcard include/config/intel/iommu.h) \
+    $(wildcard include/config/amd/iommu.h) \
+  include/linux/pm_wakeup.h \
+  include/linux/mod_devicetable.h \
+  include/linux/uuid.h \
+  include/uapi/linux/uuid.h \
 
-/home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cdata.mod.o: $(deps_/home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cdata.mod.o)
+/home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata_plat_dev.o: $(deps_/home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata_plat_dev.o)
 
-$(deps_/home/max/src/ProgramAssignment-LinuxDeviceDriver/PA_LinuxDeviceDriver-5/cdata.mod.o):
+$(deps_/home/max/src/linux-device-driver-training/PA_LinuxDeviceDriver_5/cdata_plat_dev.o):
