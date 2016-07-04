@@ -35,9 +35,11 @@ install_modules()
     fi
 
     lsmod | grep cdata
-    echo -e "\033[33mInstall modules complete.\033[0m"
+    echo -e "\033[33mInstall modules complete."
     dmesg | tail -n 40
     tree -hfC -H . --du -o dev.html /dev
+    ls -l /dev/cdata-misc
+    echo -e "\033[0m"
 }
 
 
@@ -63,12 +65,12 @@ clean_modules()
 
 
 case $1 in
-    ins)
+    insmod)
         install_modules
 	exit 0
 	;;
 
-    rm)
+    rmmod)
 	uninstall_modules
 	exit 0
 	;;
@@ -101,6 +103,8 @@ then
     exit 1
 fi
 
+
+[ $# -eq 0 ] && echo -e "\033[33m\t./build.sh [ insmod | rmmod | clean ]\033[0m\n"
 
 
 #
