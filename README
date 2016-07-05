@@ -8,12 +8,12 @@ $ ./built.sh
 
 # Install kernel module
 
-$ ./built.sh ins
+$ ./built.sh insmod
 
 
 # Remove kernel module
 
-$ ./built.sh rm
+$ ./built.sh rmmod
 
 
 # Device node

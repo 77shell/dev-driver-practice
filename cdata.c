@@ -246,7 +246,7 @@ static struct file_operations cdata_fops = {
 };
 
 static struct miscdevice cdata_miscdev = {
-	.minor = 199, /* Reference to miscdevice.h */
+	.minor = 199, /* Refer to miscdevice.h */
 	.name = "cdata-misc",
 	.fops = &cdata_fops
 	/* .nodename = "cdata" */
