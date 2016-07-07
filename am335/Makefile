@@ -1,0 +1,50 @@
+#
+# 
+# 2016-July-06
+# Max <max.yang@deltaww.com>
+#
+# To build kernel module
+# 	> cdata.ko
+#	> cdata_plat_dev.ko
+#
+
+include ./Makefile.inc
+
+DBG=y
+
+ifneq ($(DBG),y)
+	DEBUG=
+	OPTIMIZE=-O2
+else
+	DEBUG=-g
+	OPTIMIZE=-O0
+endif
+
+
+vpath %.c ../
+
+obj-m 	:= cdata.o cdata_plat_dev.o
+PWD 	:= $(shell pwd)
+
+
+.PHONY: all
+all:
+	echo "\033[33mPWD : $(PWD)\033[0m"
+	echo "\033[33mCFLAG : $(CFLAGS)\033[0m"
+	$(MAKE) ARCH=arm -C $(KDIR) SUBDIRS=$(PWD)/.. modules
+
+clean:
+	rm -rf ../*.o ../*.ko ../.*cmd ../modules.* ../Module.* ../.tmp_versions ../*.mod.c test .#* *~ .tmp_versions
+
+test: test.c
+	$(CC) -o $@ $<
+
+.PHONY: TAGS
+TAGS:
+	rm -rf TAGS
+	find ../ -regextype posix-egrep -iregex '.*\.(cpp|c|h)' | xargs etags -a
+	find ~/gcc-linaro-arm-linux-gnueabihf-4.7-2013.03-20130313_linux/arm-linux-gnueabihf/libc/usr/include \
+		-type f | xargs etags -a
+	find ~/gcc-linaro-arm-linux-gnueabihf-4.7-2013.03-20130313_linux/arm-linux-gnueabihf/include/c++/4.7.3 \
+		-type f | xargs etags -a 
+	find . -iname 'Makefile.*' -type f | xargs etags -a
