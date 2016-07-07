@@ -8,7 +8,7 @@
 #	> cdata_plat_dev.ko
 #
 
-include ./Makefile.inc
+include ../../am335/Makefile.inc
 
 DBG=y
 
@@ -20,22 +20,19 @@ else
 	OPTIMIZE=-O0
 endif
 
+CFLAGS += -iquote../../
 
 vpath %.c ../
 
-obj-m 	:= cdata.o cdata_plat_dev.o cdata-fb-ssd1308.o
-PWD 	:= $(shell pwd)
-
+BINS := test \
+	test-fb-ssd1308
 
 .PHONY: all
-all:
-	@echo "\033[33mPWD : $(PWD)\033[0m"
-	@echo "\033[33mCFLAG : $(CFLAGS)\033[0m"
-	@echo "\033[33mCC : $(CC)\033[0m"
-	$(MAKE) ARCH=arm -C $(KDIR) SUBDIRS=$(PWD)/.. modules
+all: $(BINS)
+
 
 clean:
-	rm -rf ../*.o ../*.ko ../.*cmd ../modules.* ../Module.* ../.tmp_versions ../*.mod.c .#* *~ .tmp_versions
+	rm -rf $(BINS) .#* *~
 
 
 .PHONY: TAGS

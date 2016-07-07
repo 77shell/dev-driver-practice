@@ -4,16 +4,18 @@
 # 2016-7-07
 # max.yang@deltaww.com
 #
-#
 
-REMOTE_DIR=~/remote/tpsbuserver-prj/GigaController/FW/modules
-declare -a KO_FILES=(cdata.ko cdata_plat_dev.ko)
-declare -a SCRIPT_FILES=(insmod.sh rmmod.sh)
+PROJ_ROOT=../..
 
 error_msg()
 {
     echo -e "\033[31mErrooooor~ $1\033[0m"
 }
+
+declare -a TEST_APP=(
+    test
+    test-fb-ssd1308
+)
 
 copy_files_to_remote()
 {
@@ -23,27 +25,20 @@ copy_files_to_remote()
     fi
 
     #
-    # Kernel object
+    # Test applications
     #
-    for i in ${KO_FILES[@]}
-    do
-	! cp ../$i $REMOTE_DIR && \
-	    error_msg $i
-    done
-
-    #
-    # Scripts for target
-    #
-    for i in ${SCRIPT_FILES[@]};
+    for i in ${TEST_APP[@]}
     do
 	! cp $i $REMOTE_DIR && \
-	    error_msg $i
+	    error_msg $1
     done
+
+    echo -e "\033[33m$REMOTE_DIR\033[0m"
     ls -l $REMOTE_DIR --color
-    
-    exit 0
 }
 
+
+. ${PROJ_ROOT}/am335/setup.sh
 
 case $1 in
     install)
@@ -57,6 +52,7 @@ case $1 in
 	;;
 
     *)
-	. ./setup.sh
-	make
+	make V=0
+	ls -l --color
+	echo -e "\033[33m\n\t./built.sh [ install | clean ]\n\033[0m"
 esac
