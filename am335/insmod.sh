@@ -4,9 +4,11 @@
 # 2016-7-07
 # max.yang@delta.com.tw
 #
-# Install two kernel modules
+# Install kernel modules:
 #          > cdata.ko
 #          > cdata_plat_dev.ko
+#          > cdata_fb_ssd1308.ko
+#          > cdata_fb_plat_dev.ko
 #
 
 error_msg()
@@ -14,12 +16,17 @@ error_msg()
     echo -e "\033[31mErrooooor:  $1\033[0m"
 }
 
-DEVICE_NODE=/dev/cdata-misc
 
+declare -a DEVICE_NODES=(
+    /dev/cdata-misc
+    /dev/cdata-fb
+)
 
 declare -a KO_FILE=(
     cdata_plat_dev.ko
     cdata.ko
+    cdata_fb_plat_dev.ko
+    cdata_fb_ssd1308.ko
 )
 
 
@@ -30,9 +37,13 @@ do
 done
 
 
-! [ -e $DEVICE_NODE ] && \
-    error_msg "No $DEVICE_NODE exists~" && \
-    exit 1
+for i in ${DEVICE_NODES[@]}
+do
+    ! [ -e $i ] && \
+	error_msg "No $i exists~" && \
+	exit 1
+done
+
 
 lsmod | grep cdata*
 dmesg | tail -n 40

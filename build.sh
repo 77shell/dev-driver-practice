@@ -10,13 +10,17 @@
 # > Install kernel module : cdata.ko
 #
 
+declare -a DEVICE_NODES=(
+    /dev/cdata-misc
+    /dev/cdata-fb
+)
 
 declare -a KO=(
     cdata_plat_dev.ko
     cdata.ko
+    cdata_fb_plat_dev.ko
+    cdata_fb_ssd1308.ko
 )
-
-DEVICE_NODE=/dev/cdata-misc
 
 install_modules()
 {
@@ -28,17 +32,21 @@ install_modules()
 	    && echo "Install driver: $i failed~"
     done
     
-    if [ ! -e $DEVICE_NODE ]; then
-	echo -e "\033[31mNo device node, /dev/cdata-misc\033[0m"
-    else
-	! sudo chmod 666 $DEVICE_NODE && echo "Change permission of $DEVICE_NODE failed~"
-    fi
+    for i in ${DEVICE_NODES[@]}
+    do
+	if [ ! -e $i ]; then
+	    echo -e "\033[31mNo device node, $i\033[0m"
+	else
+	    ! sudo chmod 666 $i && \
+		echo "Change permission of $i failed~"
+	fi
+    done
 
     lsmod | grep cdata
     echo -e "\033[33mInstall modules complete."
     dmesg | tail -n 40
     tree -hfC -H . --du -o dev.html /dev
-    ls -l /dev/cdata-misc
+    ls -l /dev/cdata-*
     echo -e "\033[0m"
 }
 
@@ -80,7 +88,7 @@ case $1 in
 	;;
 
     --help)
-	echo -e "\033[33m\n\t./install.sh [ ins | rm ]\n\033[0m"
+	echo -e "\033[33m\n\t./install.sh [ insmod | rmmod ]\n\033[0m"
 	exit 0
 	;;
 esac
@@ -111,7 +119,7 @@ fi
 # Making device node : /dev/cdata
 # Change node permission to 666
 #
-
+DEVICE_NODE=/dev/cdata-misc
 my_mknod()
 {
     if ! [ -e /dev/cdata ]

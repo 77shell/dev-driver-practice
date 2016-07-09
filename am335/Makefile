@@ -23,7 +23,11 @@ endif
 
 vpath %.c ../
 
-obj-m 	:= cdata.o cdata_plat_dev.o cdata-fb-ssd1308.o
+obj-m 	:= cdata.o \
+	cdata_plat_dev.o \
+	cdata_fb_ssd1308.o \
+	cdata_fb_plat_dev.o
+
 PWD 	:= $(shell pwd)
 
 

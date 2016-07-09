@@ -28,8 +28,23 @@
  *  History:    ysh   7-07-2016          Create
  *************************************************************/
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
 
 int main(int argc, char *argv[])
 {
-	exit(0);
+	int fd;
+	char *dev = "/dev/cdata-fb";
+
+	if ( (fd = open(dev, O_RDWR)) == -1 ) {
+		fprintf(stderr, "Open %s failed~\n", dev);
+		exit(EXIT_FAILURE);
+	}
+	fprintf(stderr, "Open %s successful!\n", dev);
+
+
+	close(fd);
+	
+	exit(EXIT_SUCCESS);
 }

@@ -7,7 +7,13 @@
 #
 
 REMOTE_DIR=~/remote/tpsbuserver-prj/GigaController/FW/modules
-declare -a KO_FILES=(cdata.ko cdata_plat_dev.ko)
+declare -a KO_FILES=(
+    cdata_plat_dev.ko
+    cdata.ko
+    cdata_fb_plat_dev.ko
+    cdata_fb_ssd1308.ko
+)
+    
 declare -a SCRIPT_FILES=(insmod.sh rmmod.sh)
 
 error_msg()

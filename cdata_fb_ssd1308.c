@@ -6,7 +6,7 @@
  *                 /   | ~ |   /.|  x  ~
  *                / ~      |~ /  l / L
  *
- *  Description :  OLED-SSD1308 driver, MISC category
+ *  Description :  MISC category driver for test OLED-SSD1308
  *
  *
  *  History:     ysh  7-07-2016          Create
@@ -30,7 +30,7 @@ static int cdata_fb_plat_probe(struct platform_device *);
 static int cdata_fb_plat_remove(struct platform_device *);
 
 
-static ssize_t cdata_fb_ssd1308_write(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
+static ssize_t cdata_fb_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	return 0;
 }
@@ -45,6 +45,10 @@ static int cdata_fb_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
+static int cdata_fb_ssd1308_open(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
 
 static int cdata_fb_ssd1308_close(struct inode *inode, struct file *filp)
 {
@@ -58,7 +62,7 @@ static struct file_operations cdata_fb_fops = {
 	.unlocked_ioctl = cdata_fb_ssd1308_ioctl,
 	.mmap = cdata_fb_ssd1308_mmap,
 	.open = cdata_fb_ssd1308_open,
-	.released = cdata_fb_ssd1308_close
+	.release = cdata_fb_ssd1308_close
 };
 
 static struct miscdevice cdata_fb_miscdev = {
@@ -73,16 +77,16 @@ static int cdata_fb_plat_probe(struct platform_device *plat_dev)
 
 	ret = misc_register(&cdata_fb_miscdev);
 	ret < 0
-		? printk(KERN_INFO "Register cdata_fb_miscdev failed~\n")
-		: printk(KERN_INFO "Register cdata_fb_miscdev successful~\n");
+		? printk(KERN_INFO "%s: Register cdata miscdev failed~\n", __func__)
+		: printk(KERN_INFO "%s: Register cdata miscdev successful~\n", __func__);
 	
 	return ret;
 }
 
 static int cdata_fb_plat_remove(struct platform_device *plat_dev)
 {
-	platform_device_unregister(&cdata_fb_miscdev);
-	printk(KERN_INFO "Unregister cdata_fb_miscdev successful~\n");
+	misc_deregister(&cdata_fb_miscdev);
+	printk(KERN_INFO "%s: Unregister cdata miscdev successful~\n", __func__);
 	return 0;
 }
 
@@ -98,14 +102,14 @@ static struct platform_driver cdata_fb_plat_driver = {
 int __init cdata_fb_ssd1308_init_module(void)
 {
 	int ret;
-	printk(KERN_INFO "Register cdata-fb driver successful\n");
+	printk(KERN_INFO "%s: Register cdata-fb platform driver successful\n", __func__);
 	ret = platform_driver_register(&cdata_fb_plat_driver);
 	return ret;
 }
 
 void __exit cdata_fb_ssd1308_cleanup(void)
 {
-	printk(KERN_INFO "Unregister cdata-fb driver successful\n");
+	printk(KERN_INFO "%s: Unregister cdata-fb platform driver successful\n", __func__);
 	platform_driver_unregister(&cdata_fb_plat_driver);
 }
 
