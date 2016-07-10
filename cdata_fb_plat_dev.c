@@ -16,8 +16,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-static struct resource cdata_fb_resource[] = {
-};
+static struct resource cdata_fb_resource[];
 
 static void cdata_fb_dev_release(struct device *dev)
 {
@@ -47,4 +46,3 @@ module_init(cdata_fb_plat_init);
 module_exit(cdata_fb_plat_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Max Yang");

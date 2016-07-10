@@ -26,6 +26,9 @@
 #include <linux/wait.h>
 #include <linux/platform_device.h>
 
+
+#define __HELPER_MACRO
+
 static int cdata_fb_plat_probe(struct platform_device *);
 static int cdata_fb_plat_remove(struct platform_device *);
 
@@ -99,6 +102,8 @@ static struct platform_driver cdata_fb_plat_driver = {
 	.remove = cdata_fb_plat_remove
 };
 
+
+#ifdef __HELPER_MACRO
 int __init cdata_fb_ssd1308_init_module(void)
 {
 	int ret;
@@ -112,8 +117,13 @@ void __exit cdata_fb_ssd1308_cleanup(void)
 	printk(KERN_INFO "%s: Unregister cdata-fb platform driver successful\n", __func__);
 	platform_driver_unregister(&cdata_fb_plat_driver);
 }
+#endif
 
-
+#ifdef __HELPER_MACRO
 module_init(cdata_fb_ssd1308_init_module);
 module_exit(cdata_fb_ssd1308_cleanup);
+#else
+module_platform_driver(cdata_fb_plat_driver);
+#endif
+
 MODULE_LICENSE("GPL");

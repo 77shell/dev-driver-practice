@@ -10,56 +10,7 @@
 # > Install kernel module : cdata.ko
 #
 
-declare -a DEVICE_NODES=(
-    /dev/cdata-misc
-    /dev/cdata-fb
-)
-
-declare -a KO=(
-    cdata_plat_dev.ko
-    cdata.ko
-    cdata_fb_plat_dev.ko
-    cdata_fb_ssd1308.ko
-)
-
-install_modules()
-{
-    sudo dmesg -C
-    
-    for i in ${KO[@]}
-    do
-	! sudo insmod $i \
-	    && echo "Install driver: $i failed~"
-    done
-    
-    for i in ${DEVICE_NODES[@]}
-    do
-	if [ ! -e $i ]; then
-	    echo -e "\033[31mNo device node, $i\033[0m"
-	else
-	    ! sudo chmod 666 $i && \
-		echo "Change permission of $i failed~"
-	fi
-    done
-
-    lsmod | grep cdata
-    echo -e "\033[33mInstall modules complete."
-    dmesg | tail -n 40
-    tree -hfC -H . --du -o dev.html /dev
-    ls -l /dev/cdata-*
-    echo -e "\033[0m"
-}
-
-
-uninstall_modules()
-{
-    for i in ${KO[@]}
-    do
-	! sudo rmmod $i \
-	    && echo "Uninstall driver: $i failed~"
-    done
-    echo -e "\033[33mUninstall modules\033[0m"
-}
+. ./VAR.sh
 
 
 clean_modules()
@@ -68,18 +19,19 @@ clean_modules()
     do
 	! rm $i
     done
-    echo -e "\033[33mDelete modules\033[0m"
+
+    mesg_brown "Delete modules"
 }
 
 
 case $1 in
     insmod)
-        install_modules
+        ./insmod.sh
 	exit 0
 	;;
 
     rmmod)
-	uninstall_modules
+	./rmmod.sh
 	exit 0
 	;;
 
@@ -88,7 +40,7 @@ case $1 in
 	;;
 
     --help)
-	echo -e "\033[33m\n\t./install.sh [ insmod | rmmod ]\n\033[0m"
+	mesg_brown "\n\t./install.sh [ insmod | rmmod ]\n"
 	exit 0
 	;;
 esac
@@ -97,7 +49,7 @@ esac
 
 if ! make
 then
-    echo -e "\033[32mMake cdata failed~\033[0m"
+    mesg_red "Make cdata failed~"
     exit 1
 else
     echo -e "\033[33mMake cdata Okay~~"
@@ -107,13 +59,13 @@ fi
 
 if ! make test
 then
-    echo -e "\033[32mMake test failed~\033[0m"
+    mesg_red "Make test failed~"
     exit 1
 fi
 
 
-[ $# -eq 0 ] && echo -e "\033[33m\t./build.sh [ insmod | rmmod | clean ]\033[0m\n"
-
+[ $# -eq 0 ] && \
+    mesg_brown "\t./build.sh [ insmod | rmmod | clean ]\n"
 
 #
 # Making device node : /dev/cdata
