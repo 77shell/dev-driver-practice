@@ -25,12 +25,17 @@
 #include <linux/input.h>
 #include <linux/wait.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 
 #define __HELPER_MACRO
 
-static int cdata_fb_plat_probe(struct platform_device *);
-static int cdata_fb_plat_remove(struct platform_device *);
+#define PIXEL_X    128
+#define PIXEL_Y     64
+
+struct cdata_fb_t {
+	u8 pixel_buffer[PIXEL_X][PIXEL_Y];
+};
 
 
 static ssize_t cdata_fb_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
@@ -50,11 +55,19 @@ static int cdata_fb_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 
 static int cdata_fb_ssd1308_open(struct inode *inode, struct file *filp)
 {
+	struct cdata_fb_t *cdata;
+	
+	/* Allocate memory to private data, and set memory to zero */
+	cdata = kzalloc(sizeof(struct cdata_fb_t), GFP_KERNEL);
+	filp->private_data = cdata;
+
+
 	return 0;
 }
 
 static int cdata_fb_ssd1308_close(struct inode *inode, struct file *filp)
 {
+	kfree(filp->private_data);
 	return 0;
 }
 
