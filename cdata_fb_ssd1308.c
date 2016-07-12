@@ -28,18 +28,50 @@
 #include <linux/slab.h>
 
 
-#define __HELPER_MACRO
+#define __PLATFORM_DRIVER_HELPER_MACRO
+
+#define __WORKQUEUE
 
 #define PIXEL_X    128
 #define PIXEL_Y     64
 
 struct cdata_fb_t {
+	wait_queue_head_t wait_q;
+	struct work_struct worker;
+	struct timer_list timer;
 	u8 pixel_buffer[PIXEL_X][PIXEL_Y];
 };
 
 
+static void worker_func(struct work_struct *pWork)
+{
+	struct cdata_fb_t *cdata;
+
+	cdata = container_of(pWork, struct cdata_fb_t, worker);
+	printk(KERN_INFO "%s\n", __func__);
+}
+
+
+static void timer_func(unsigned long pCdata)
+{
+	struct cdata_fb_t *cdata = (struct cdata_fb_t*)pCdata;
+	printk(KERN_INFO "%s\n", __func__);
+}
+
+
 static ssize_t cdata_fb_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
+	struct cdata_fb_t *cdata = (struct cdata_fb_t*)filp->private_data;
+
+	printk(KERN_INFO "%s: schedule worker\n", __func__);
+	schedule_work(&cdata->worker);
+
+	
+#define TIMEOUT_VALUE   (2 * HZ)
+	printk(KERN_INFO "%s: submit timer\n", __func__);
+	cdata->timer.expires = jiffies + TIMEOUT_VALUE;
+	add_timer(&cdata->timer);
+	
 	return 0;
 }
 
@@ -56,17 +88,30 @@ static int cdata_fb_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 static int cdata_fb_ssd1308_open(struct inode *inode, struct file *filp)
 {
 	struct cdata_fb_t *cdata;
+	printk(KERN_INFO "%s\n", __func__);
 	
 	/* Allocate memory to private data, and set memory to zero */
 	cdata = kzalloc(sizeof(struct cdata_fb_t), GFP_KERNEL);
 	filp->private_data = cdata;
 
+	init_waitqueue_head(&cdata->wait_q);
 
+	INIT_WORK(&cdata->worker, worker_func);
+
+	/* Init timer */
+	init_timer(&cdata->timer);
+	cdata->timer.function = timer_func;
+	cdata->timer.data = (unsigned long)cdata;
 	return 0;
 }
 
 static int cdata_fb_ssd1308_close(struct inode *inode, struct file *filp)
 {
+	struct cdata_fb_t *cdata;
+	printk(KERN_INFO "%s\n", __func__);
+	
+	cdata = (struct cdata_fb_t*)flip->private_data;	
+	del_timer(cdata->timer);
 	kfree(filp->private_data);
 	return 0;
 }
@@ -116,7 +161,7 @@ static struct platform_driver cdata_fb_plat_driver = {
 };
 
 
-#ifdef __HELPER_MACRO
+#ifdef __PLATFORM_DRIVER_HELPER_MACRO
 int __init cdata_fb_ssd1308_init_module(void)
 {
 	int ret;
@@ -132,7 +177,7 @@ void __exit cdata_fb_ssd1308_cleanup(void)
 }
 #endif
 
-#ifdef __HELPER_MACRO
+#ifdef __PLATFORM_DRIVER_HELPER_MACRO
 module_init(cdata_fb_ssd1308_init_module);
 module_exit(cdata_fb_ssd1308_cleanup);
 #else

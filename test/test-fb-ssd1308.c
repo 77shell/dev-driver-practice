@@ -35,14 +35,18 @@
 int main(int argc, char *argv[])
 {
 	int fd;
+	char write_data[20];
+	ssize_t ret;
 	char *dev = "/dev/cdata-fb";
 
 	if ( (fd = open(dev, O_RDWR)) == -1 ) {
 		fprintf(stderr, "Open %s failed~\n", dev);
 		exit(EXIT_FAILURE);
 	}
+	
 	fprintf(stderr, "Open %s successful!\n", dev);
 
+	ret = write(fd, write_data, sizeof write_data);
 
 	close(fd);
 	

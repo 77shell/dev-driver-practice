@@ -96,9 +96,6 @@ static int cdata_open(struct inode *inode, struct file *filp)
 		cdata->index = 0;
 		for (i=0; i<BUFSIZE; i++)
 			cdata->buf[i] = 0;
-
-		init_waitqueue_head(&cdata->write_queue);
-		INIT_WORK(&cdata->work, flush_data);
 	}
 
 	init_waitqueue_head(&cdata->write_queue);

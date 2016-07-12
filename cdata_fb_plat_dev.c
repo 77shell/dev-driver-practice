@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-static struct resource cdata_fb_resource[];
+static struct resource cdata_fb_resource[1];
 
 static void cdata_fb_dev_release(struct device *dev)
 {
