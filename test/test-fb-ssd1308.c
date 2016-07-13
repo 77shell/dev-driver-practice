@@ -28,16 +28,21 @@
  *  History:    ysh   7-07-2016          Create
  *************************************************************/
 
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <fcntl.h>
+#include <unistd.h>
+
 
 int main(int argc, char *argv[])
 {
 	int fd;
-	char write_data[20];
+	char write_data[20] = { 0 };
 	ssize_t ret;
 	char *dev = "/dev/cdata-fb";
+	pid_t child;
 
 	if ( (fd = open(dev, O_RDWR)) == -1 ) {
 		fprintf(stderr, "Open %s failed~\n", dev);
@@ -46,7 +51,14 @@ int main(int argc, char *argv[])
 	
 	fprintf(stderr, "Open %s successful!\n", dev);
 
+	child = fork();
+	if (child == 0)
+		strcpy(write_data, "I'm a child");
+	else
+		strcpy(write_data, "I'm parent");
+
 	ret = write(fd, write_data, sizeof write_data);
+	printf("%s : %d\n", write_data, ret);
 
 	close(fd);
 	

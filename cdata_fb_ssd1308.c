@@ -26,6 +26,7 @@
 #include <linux/wait.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/semaphore.h>
 
 
 #define __PLATFORM_DRIVER_HELPER_MACRO
@@ -37,9 +38,14 @@
 
 struct cdata_fb_t {
 	wait_queue_head_t wait_q;
+	struct semaphore sem;
+	
 	struct work_struct worker;
 	struct timer_list timer;
-	u8 pixel_buffer[PIXEL_X][PIXEL_Y];
+	int worker_count;
+	int timer_count;
+	u8 data[PIXEL_X];
+	/* u8 pixel_buffer[PIXEL_X][PIXEL_Y]; */
 };
 
 
@@ -48,31 +54,50 @@ static void worker_func(struct work_struct *pWork)
 	struct cdata_fb_t *cdata;
 
 	cdata = container_of(pWork, struct cdata_fb_t, worker);
-	printk(KERN_INFO "%s\n", __func__);
+	printk(KERN_INFO "%s: %s\n", __func__, cdata->data);
+	cdata->worker_count++;
+	wake_up_interruptible(&cdata->wait_q);
 }
 
 
 static void timer_func(unsigned long pCdata)
 {
 	struct cdata_fb_t *cdata = (struct cdata_fb_t*)pCdata;
-	printk(KERN_INFO "%s\n", __func__);
+	printk(KERN_INFO "%s: %s\n", __func__, cdata->data);
+	cdata->timer_count++;
+	wake_up_interruptible(&cdata->wait_q);
 }
 
 
 static ssize_t cdata_fb_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
-	struct cdata_fb_t *cdata = (struct cdata_fb_t*)filp->private_data;
+	struct cdata_fb_t *cdata;
+	int worker_count, timer_count;
 
+	cdata = (struct cdata_fb_t*)filp->private_data;
+	down_interruptible(&cdata->sem);
+	
+	worker_count = cdata->worker_count;
+	timer_count = cdata->timer_count;
+	copy_from_user(cdata->data, buf, count);
+	
 	printk(KERN_INFO "%s: schedule worker\n", __func__);
 	schedule_work(&cdata->worker);
-
 	
 #define TIMEOUT_VALUE   (2 * HZ)
 	printk(KERN_INFO "%s: submit timer\n", __func__);
 	cdata->timer.expires = jiffies + TIMEOUT_VALUE;
 	add_timer(&cdata->timer);
+
+	wait_event_interruptible(cdata->wait_q,
+				 worker_count != cdata->worker_count
+				 && timer_count != cdata->timer_count);
 	
-	return 0;
+	printk(KERN_INFO "worker_count: %d\n", cdata->worker_count);
+	printk(KERN_INFO "timer_count : %d\n", cdata->timer_count);
+	printk(KERN_INFO "%s: complete\n", __func__);
+	up(&cdata->sem);
+	return count;
 }
 
 static long cdata_fb_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -95,6 +120,7 @@ static int cdata_fb_ssd1308_open(struct inode *inode, struct file *filp)
 	filp->private_data = cdata;
 
 	init_waitqueue_head(&cdata->wait_q);
+	sema_init(&cdata->sem, 1);
 
 	INIT_WORK(&cdata->worker, worker_func);
 
@@ -110,8 +136,8 @@ static int cdata_fb_ssd1308_close(struct inode *inode, struct file *filp)
 	struct cdata_fb_t *cdata;
 	printk(KERN_INFO "%s\n", __func__);
 	
-	cdata = (struct cdata_fb_t*)flip->private_data;	
-	del_timer(cdata->timer);
+	cdata = (struct cdata_fb_t*)filp->private_data;	
+	del_timer_sync(&cdata->timer);
 	kfree(filp->private_data);
 	return 0;
 }

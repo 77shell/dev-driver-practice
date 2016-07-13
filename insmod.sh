@@ -5,6 +5,8 @@
 # Clean kernel message buffer
 sudo dmesg -C
 
+./rmmod.sh > /dev/null
+
 for i in ${KO[@]}
 do
     ! sudo insmod $i \
