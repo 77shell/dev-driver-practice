@@ -34,6 +34,23 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+
+sig_atomic_t child_exit_status;
+
+void clean_up_child_proc(int sig_number, siginfo_t *info, void *p)
+{
+	/* Clean up the child process */
+	int status;
+	pid_t child_pid;
+	child_pid = wait(&status);
+
+	printf("%s: Child PID %d\n", __func__, child_pid);
+	child_exit_status = status;
+}
 
 
 int main(int argc, char *argv[])
@@ -43,20 +60,38 @@ int main(int argc, char *argv[])
 	ssize_t ret;
 	char *dev = "/dev/cdata-fb";
 	pid_t child;
+	struct sigaction sigchld_action;
 
-	if ( (fd = open(dev, O_RDWR)) == -1 ) {
-		fprintf(stderr, "Open %s failed~\n", dev);
-		exit(EXIT_FAILURE);
-	}
-	
-	fprintf(stderr, "Open %s successful!\n", dev);
+	/*
+	 * If child process completes earlier than parent process,
+	 * Child process becomes a zombie process, parent process has to
+	 * clean up child process by calling wait().
+	 */
+	memset(&sigchld_action, 0, sizeof(struct sigaction));
+	sigchld_action.sa_sigaction = clean_up_child_proc;
+	sigaction (SIGCHLD, &sigchld_action, NULL);
 
 	child = fork();
 	if (child == 0)
 		strcpy(write_data, "I'm a child");
 	else
 		strcpy(write_data, "I'm parent");
-
+	
+	if ( (fd = open(dev, O_RDWR)) == -1 ) {
+		fprintf(stderr, "Open %s failed~\n", dev);
+		exit(EXIT_FAILURE);
+	}
+	
+	fprintf(stderr, "Open %s successful!\n", dev);
+	
+#if 0
+	child = fork();
+	if (child == 0)
+		strcpy(write_data, "I'm a child");
+	else
+		strcpy(write_data, "I'm parent");
+#endif
+	
 	ret = write(fd, write_data, sizeof write_data);
 	printf("%s : %d\n", write_data, ret);
 

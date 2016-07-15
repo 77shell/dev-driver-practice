@@ -27,6 +27,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/semaphore.h>
+#include <linux/interrupt.h>
+#include <linux/string.h>
 
 
 #define __PLATFORM_DRIVER_HELPER_MACRO
@@ -39,11 +41,12 @@
 struct cdata_fb_t {
 	wait_queue_head_t wait_q;
 	struct semaphore sem;
-	
 	struct work_struct worker;
 	struct timer_list timer;
+	struct tasklet_struct tasklet;
 	int worker_count;
 	int timer_count;
+	int tasklet_count;
 	u8 data[PIXEL_X];
 	/* u8 pixel_buffer[PIXEL_X][PIXEL_Y]; */
 };
@@ -69,33 +72,73 @@ static void timer_func(unsigned long pCdata)
 }
 
 
+static void tasklet_func(unsigned long pCdata)
+{
+	struct cdata_fb_t *cdata = (struct cdata_fb_t*)pCdata;
+	printk(KERN_INFO "%s: %s\n", __func__, cdata->data);
+	cdata->tasklet_count++;
+	wake_up_interruptible(&cdata->wait_q);
+}
+
+
 static ssize_t cdata_fb_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	struct cdata_fb_t *cdata;
-	int worker_count, timer_count;
+	int worker_count, timer_count, tasklet_count;
+	unsigned long timeout;
 
 	cdata = (struct cdata_fb_t*)filp->private_data;
 	down_interruptible(&cdata->sem);
 	
-	worker_count = cdata->worker_count;
-	timer_count = cdata->timer_count;
+	worker_count  = cdata->worker_count;
+	timer_count   = cdata->timer_count;
+	tasklet_count = cdata->tasklet_count;
 	copy_from_user(cdata->data, buf, count);
-	
+
+	/*
+	 * Schedule worker
+	 */
 	printk(KERN_INFO "%s: schedule worker\n", __func__);
 	schedule_work(&cdata->worker);
+
+	/*
+	 * Schedule kernel timer
+	 */
+	timeout = strstr(cdata->data, "child") != NULL
+		/* Child process */
+		? 1 * HZ
+		
+		/* Parent process */
+		: 7 * HZ;
 	
-#define TIMEOUT_VALUE   (2 * HZ)
-	printk(KERN_INFO "%s: submit timer\n", __func__);
-	cdata->timer.expires = jiffies + TIMEOUT_VALUE;
+	printk(KERN_INFO "%s: submit timer, timeout %d\n", __func__, timeout);
+	cdata->timer.expires = jiffies + timeout;
 	add_timer(&cdata->timer);
 
-	wait_event_interruptible(cdata->wait_q,
-				 worker_count != cdata->worker_count
-				 && timer_count != cdata->timer_count);
+	/*
+	 * Schedule tasklet 
+	 */
+	printk(KERN_INFO "%s: schedule tasklet\n", __func__);
+	tasklet_schedule(&cdata->tasklet);
 	
-	printk(KERN_INFO "worker_count: %d\n", cdata->worker_count);
-	printk(KERN_INFO "timer_count : %d\n", cdata->timer_count);
-	printk(KERN_INFO "%s: complete\n", __func__);
+	/*
+	 * Blocking I/O
+	 */
+REPEAT:
+#define EVENTS()					\
+	( worker_count != cdata->worker_count		\
+	  && timer_count   != cdata->timer_count	\
+	  && tasklet_count != cdata->tasklet_count )
+
+	wait_event_interruptible(cdata->wait_q, EVENTS());
+
+	if ( !EVENTS() )
+		goto REPEAT;
+	
+	printk(KERN_INFO "worker_count  : %d %d, %s\n", worker_count, cdata->worker_count, cdata->data);
+	printk(KERN_INFO "timer_count   : %d %d, %s\n", timer_count, cdata->timer_count, cdata->data);
+	printk(KERN_INFO "tasklet_count : %d %d, %s\n", tasklet_count, cdata->tasklet_count, cdata->data);
+	printk(KERN_INFO "%s: complete, %s\n", __func__, cdata->data);
 	up(&cdata->sem);
 	return count;
 }
@@ -122,26 +165,29 @@ static int cdata_fb_ssd1308_open(struct inode *inode, struct file *filp)
 	init_waitqueue_head(&cdata->wait_q);
 	sema_init(&cdata->sem, 1);
 
+	/* Init work queue */
 	INIT_WORK(&cdata->worker, worker_func);
 
 	/* Init timer */
 	init_timer(&cdata->timer);
 	cdata->timer.function = timer_func;
 	cdata->timer.data = (unsigned long)cdata;
+
+	/* Init tasklet */
+	tasklet_init(&cdata->tasklet, tasklet_func, (unsigned long)cdata);
 	return 0;
 }
 
 static int cdata_fb_ssd1308_close(struct inode *inode, struct file *filp)
 {
 	struct cdata_fb_t *cdata;
-	printk(KERN_INFO "%s\n", __func__);
-	
-	cdata = (struct cdata_fb_t*)filp->private_data;	
+
+	cdata = (struct cdata_fb_t*)filp->private_data;
+	printk(KERN_INFO "%s: %s\n", __func__, cdata->data);
 	del_timer_sync(&cdata->timer);
 	kfree(filp->private_data);
 	return 0;
 }
-
 
 static struct file_operations cdata_fb_fops = {
 	.owner = THIS_MODULE,
