@@ -13,10 +13,13 @@
 obj-m := cdata.o \
 	cdata_plat_dev.o \
 	cdata_fb_ssd1308.o \
-	cdata_fb_plat_dev.o
+	cdata_fb_plat_dev.o \
+	oled_ssd1308_spi.o \
+	oled_plat_dev.o
 
 KDIR := /usr/src/linux-headers-$(shell uname -r)
 PWD := $(shell pwd)
+ccflag-y += "-iquote./"
 
 default:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules

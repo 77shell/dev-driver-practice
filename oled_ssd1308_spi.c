@@ -29,16 +29,16 @@
 #include <linux/semaphore.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
+#include <linux/spi/spi.h>
+#include "oled_ssd1308_spi.h"
 
-
-#define __PLATFORM_DRIVER_HELPER_MACRO
 
 #define __WORKQUEUE
 
 #define PIXEL_X    128
 #define PIXEL_Y     64
 
-struct cdata_fb_t {
+struct ssd1308_t {
 	wait_queue_head_t wait_q;
 	struct semaphore sem;
 	struct work_struct worker;
@@ -47,6 +47,11 @@ struct cdata_fb_t {
 	int worker_count;
 	int timer_count;
 	int tasklet_count;
+
+	struct spi_device *spi;
+	struct oled_platform_data_t platform_data;
+	u8 *pixel_x;
+	u8 *pixel_y;
 	u8 data[PIXEL_X];
 	/* u8 pixel_buffer[PIXEL_X][PIXEL_Y]; */
 };
@@ -54,9 +59,9 @@ struct cdata_fb_t {
 
 static void worker_func(struct work_struct *pWork)
 {
-	struct cdata_fb_t *cdata;
+	struct ssd1308_t *cdata;
 
-	cdata = container_of(pWork, struct cdata_fb_t, worker);
+	cdata = container_of(pWork, struct ssd1308_t, worker);
 	printk(KERN_INFO "%s: %s\n", __func__, cdata->data);
 	cdata->worker_count++;
 	wake_up_interruptible(&cdata->wait_q);
@@ -65,7 +70,7 @@ static void worker_func(struct work_struct *pWork)
 
 static void timer_func(unsigned long pCdata)
 {
-	struct cdata_fb_t *cdata = (struct cdata_fb_t*)pCdata;
+	struct ssd1308_t *cdata = (struct ssd1308_t*)pCdata;
 	printk(KERN_INFO "%s: %s\n", __func__, cdata->data);
 	cdata->timer_count++;
 	wake_up_interruptible(&cdata->wait_q);
@@ -74,20 +79,20 @@ static void timer_func(unsigned long pCdata)
 
 static void tasklet_func(unsigned long pCdata)
 {
-	struct cdata_fb_t *cdata = (struct cdata_fb_t*)pCdata;
+	struct ssd1308_t *cdata = (struct ssd1308_t*)pCdata;
 	printk(KERN_INFO "%s: %s\n", __func__, cdata->data);
 	cdata->tasklet_count++;
 	wake_up_interruptible(&cdata->wait_q);
 }
 
 
-static ssize_t cdata_fb_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
+static ssize_t oled_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
-	struct cdata_fb_t *cdata;
+	struct ssd1308_t *cdata;
 	int worker_count, timer_count, tasklet_count;
 	unsigned long timeout;
 
-	cdata = (struct cdata_fb_t*)filp->private_data;
+	cdata = (struct ssd1308_t*)filp->private_data;
 	down_interruptible(&cdata->sem);
 	
 	worker_count  = cdata->worker_count;
@@ -143,23 +148,23 @@ REPEAT:
 	return count;
 }
 
-static long cdata_fb_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	return 0;
 }
 
-static int cdata_fb_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
+static int oled_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	return 0;
 }
 
-static int cdata_fb_ssd1308_open(struct inode *inode, struct file *filp)
+static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 {
-	struct cdata_fb_t *cdata;
+	struct ssd1308_t *cdata;
 	printk(KERN_INFO "%s\n", __func__);
 	
 	/* Allocate memory to private data, and set memory to zero */
-	cdata = kzalloc(sizeof(struct cdata_fb_t), GFP_KERNEL);
+	cdata = kzalloc(sizeof(struct ssd1308_t), GFP_KERNEL);
 	filp->private_data = cdata;
 
 	init_waitqueue_head(&cdata->wait_q);
@@ -178,84 +183,75 @@ static int cdata_fb_ssd1308_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int cdata_fb_ssd1308_close(struct inode *inode, struct file *filp)
+static int oled_ssd1308_close(struct inode *inode, struct file *filp)
 {
-	struct cdata_fb_t *cdata;
+	struct ssd1308_t *cdata;
 
-	cdata = (struct cdata_fb_t*)filp->private_data;
+	cdata = (struct ssd1308_t*)filp->private_data;
 	printk(KERN_INFO "%s: %s\n", __func__, cdata->data);
 	del_timer_sync(&cdata->timer);
 	kfree(filp->private_data);
 	return 0;
 }
 
-static struct file_operations cdata_fb_fops = {
+static struct file_operations oled_fops = {
 	.owner = THIS_MODULE,
-	.write = cdata_fb_ssd1308_write,
-	.unlocked_ioctl = cdata_fb_ssd1308_ioctl,
-	.mmap = cdata_fb_ssd1308_mmap,
-	.open = cdata_fb_ssd1308_open,
-	.release = cdata_fb_ssd1308_close
+	.write = oled_ssd1308_write,
+	.unlocked_ioctl = oled_ssd1308_ioctl,
+	.mmap = oled_ssd1308_mmap,
+	.open = oled_ssd1308_open,
+	.release = oled_ssd1308_close
 };
 
-static struct miscdevice cdata_fb_miscdev = {
-	.minor = 198, /* Refer to miscdev.h */
-	.name = "cdata-fb",
-	.fops = &cdata_fb_fops
+
+static struct miscdevice oled_ssd1308_miscdev = {
+	.minor = 197, /* Refer to miscdev.h */
+	.name = "oled-ssd1308",
+	.fops = &oled_fops
 };
 
-static int cdata_fb_plat_probe(struct platform_device *plat_dev)
+
+static int oled_ssd1308_probe(struct spi_device *spi)
 {
-	int ret;
+	int ret = 1;
+	struct oled_platform_data_t *pData;
 
-	ret = misc_register(&cdata_fb_miscdev);
+#if 0
+	if (!spi) {
+		printk(KERN_WARNING "%s: spi is null. Device is not accessible\n",
+		       __func__);
+		return -ENODEV;
+	}
+#endif
+
+	ret = misc_register(&oled_ssd1308_miscdev);
+	
 	ret < 0
-		? printk(KERN_INFO "%s: Register cdata miscdev failed~\n", __func__)
-		: printk(KERN_INFO "%s: Register cdata miscdev successful~\n", __func__);
+		? printk(KERN_INFO "%s: Register OLED miscdev failed~\n", __func__)
+		: printk(KERN_INFO "%s: Register OLED miscdev successful~\n", __func__);
 	
 	return ret;
 }
 
-static int cdata_fb_plat_remove(struct platform_device *plat_dev)
+static int oled_ssd1308_remove(struct spi_device *spi)
 {
-	misc_deregister(&cdata_fb_miscdev);
+	misc_deregister(&oled_ssd1308_miscdev);
 	printk(KERN_INFO "%s: Unregister cdata miscdev successful~\n", __func__);
 	return 0;
 }
 
-static struct platform_driver cdata_fb_plat_driver = {
+
+static struct spi_driver oled_ssd1308_driver = {
 	.driver = {
-		.name = "cdata-fb",
+		.name = "oled-ssd1308",
 		.owner = THIS_MODULE
 	},
-	.probe = cdata_fb_plat_probe,
-	.remove = cdata_fb_plat_remove
+	.probe = oled_ssd1308_probe,
+	.remove = oled_ssd1308_remove
 };
 
 
-#ifndef __PLATFORM_DRIVER_HELPER_MACRO
-int __init cdata_fb_ssd1308_init_module(void)
-{
-	int ret;
-	printk(KERN_INFO "%s: Register cdata-fb platform driver successful\n", __func__);
-	ret = platform_driver_register(&cdata_fb_plat_driver);
-	return ret;
-}
-
-void __exit cdata_fb_ssd1308_cleanup(void)
-{
-	printk(KERN_INFO "%s: Unregister cdata-fb platform driver successful\n", __func__);
-	platform_driver_unregister(&cdata_fb_plat_driver);
-}
-#endif
-
-
-#ifdef __PLATFORM_DRIVER_HELPER_MACRO
-module_platform_driver(cdata_fb_plat_driver);
-#else
-module_init(cdata_fb_ssd1308_init_module);
-module_exit(cdata_fb_ssd1308_cleanup);
-#endif
+module_spi_driver(oled_ssd1308_driver);
 
 
 MODULE_LICENSE("GPL");
