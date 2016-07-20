@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/spi/spi.h>
+#include <linux/uaccess.h>
 #include "oled_ssd1308_spi.h"
 
 
@@ -240,11 +241,19 @@ static int oled_ssd1308_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id oled_ssd1308_dt_ids[] = {
+	{ .compatible = "visionox,ssd1308" },
+	{}
+};
+
+MODULE_DEVICE_TABLE(of, oled_ssd1308_dt_ids);
+
 
 static struct spi_driver oled_ssd1308_driver = {
 	.driver = {
 		.name = "oled-ssd1308",
-		.owner = THIS_MODULE
+		.owner = THIS_MODULE,
+		.of_match_table = oled_ssd1308_dt_ids
 	},
 	.probe = oled_ssd1308_probe,
 	.remove = oled_ssd1308_remove

@@ -9,6 +9,8 @@
 #          > cdata_plat_dev.ko
 #          > cdata_fb_ssd1308.ko
 #          > cdata_fb_plat_dev.ko
+#          > oled_ssd1308_spi.ko
+#          > oled_plat_dev.ko
 #
 
 error_msg()
@@ -18,15 +20,18 @@ error_msg()
 
 
 declare -a DEVICE_NODES=(
-    /dev/cdata-misc
-    /dev/cdata-fb
+    #/dev/cdata-misc
+    #/dev/cdata-fb
+    /dev/oled-ssd1308
 )
 
 declare -a KO_FILE=(
-    cdata_plat_dev.ko
-    cdata.ko
-    cdata_fb_plat_dev.ko
-    cdata_fb_ssd1308.ko
+    #cdata_plat_dev.ko
+    #cdata.ko
+    #cdata_fb_plat_dev.ko
+    #cdata_fb_ssd1308.ko
+    oled_ssd1308_spi.ko
+    oled_plat_dev.ko
 )
 
 

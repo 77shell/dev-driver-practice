@@ -16,29 +16,14 @@ struct spi_board_info oled_board_info[] = {
 		.platform_data = &oled_platform_data,
 		.mode = SPI_MODE_0,
 		.max_speed_hz = 1000000,
-		.bus_num = 0,
+		.bus_num = 1, /* spidev1.x */
 		.chip_select = 0
 	}
-};
-
-static struct resource oled_resource[1];
-
-static void oled_dev_release(struct device *dev)
-{
-}
-
-static struct platform_device oled_platform_device = {
-	.name = "oled-ssd1308",
-	.resource = oled_resource,
-	.num_resources = ARRAY_SIZE(oled_resource),
-	.dev.release = oled_dev_release
 };
 
 
 static int oled_plat_dev_init(void)
 {
-	//return platform_device_register(&oled_platform_device);
-	//return spi_register_board_info(oled_board_info, ARRAY_SIZE(oled_board_info));
 	struct spi_master *master;
 	struct spi_device *spi_dev;
 

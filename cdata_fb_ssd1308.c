@@ -29,6 +29,7 @@
 #include <linux/semaphore.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
+#include <linux/uaccess.h>
 
 
 #define __PLATFORM_DRIVER_HELPER_MACRO
