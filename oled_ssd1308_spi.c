@@ -60,24 +60,29 @@ struct gpio_t {
 	char *label;
 };
 
-
 struct oled_platform_data_t OLED;
-static int  oled_request_gpios(void);
+static struct gpio_t *oled_gpios = NULL;
+static ssize_t oled_gpio_nr = 0;
+static int oled_init_gpios(void);
 static void oled_free_gpios(void);
 
 
-static int oled_request_gpios()
-{
-	const struct gpio_t gpios[] = {
+static int oled_init_gpios()
+{	
+	ssize_t i;
+	int err;
+	struct gpio_t gpios[] = {
 		{ OLED.reset_pin, GPIOF_DIR_OUT, "OLED-Reset-Pin" },
 		{ OLED.ad_pin,    GPIOF_DIR_OUT, "OLED-AD-Pin"    },
 		{ OLED.led1_pin,  GPIOF_DIR_OUT, "LED1-Pin"       },
-		{ OLED.led2_pin,  GPIOF_DIR_OUT, "LED2-Pin"       },
+		{ OLED.led2_pin,  GPIOF_DIR_OUT, "LED2-Pin"       }
 	};
 	
-	int i, err;
+	oled_gpio_nr = ARRAY_SIZE(gpios);
+	oled_gpios = kzalloc(sizeof gpios, GFP_KERNEL);
+	memcpy(oled_gpios, gpios, sizeof gpios);
 	
-	for (i=0; i<ARRAY_SIZE(gpios); i++) {
+	for (i=0; i<oled_gpio_nr; i++) {
 		err = gpio_request_one(gpios[i].pin,
 				       gpios[i].flag, gpios[i].label);
 		if (err)
@@ -94,20 +99,17 @@ static int oled_request_gpios()
 
 static void oled_free_gpios()
 {	
-	const struct gpio_t gpios[] = {
-		{ OLED.reset_pin, GPIOF_DIR_OUT, "OLED-Reset-Pin" },
-		{ OLED.ad_pin,    GPIOF_DIR_OUT, "OLED-AD-Pin"    },
-		{ OLED.led1_pin,  GPIOF_DIR_OUT, "LED1-Pin"       },
-		{ OLED.led2_pin,  GPIOF_DIR_OUT, "LED2-Pin"       },
-	};
-	int i;
-
+	ssize_t i;
+	ssize_t gpio_nr = oled_gpio_nr;
+	struct gpio_t *gpios = oled_gpios;
+	
 	gpio_set_value(OLED.led1_pin, 1);
 	gpio_set_value(OLED.led2_pin, 1);
 	
-	for (i=0; i<ARRAY_SIZE(gpios); i++)
+	for (i=0; i<gpio_nr; i++)
 		gpio_free(gpios[i].pin);
 	
+	kfree(oled_gpios);
 	printk(KERN_INFO "%s\n", __func__);
 }
 
@@ -129,6 +131,7 @@ static void timer_func(unsigned long pSSD)
 {
 	struct ssd1308_t *ssd = (struct ssd1308_t*)pSSD;
 	ssd->timer_count++;
+	oled_paint((u8)(ssd->timer_count));
 	wake_up_interruptible(&ssd->wait_q);
 }
 
@@ -172,7 +175,7 @@ static ssize_t oled_ssd1308_write(struct file *filp, const char __user *buf, siz
 		/* Parent process */
 		: 7 * HZ;
 #else
-	timeout = 7 * HZ;
+	timeout = 1 * HZ;
 #endif
 	
 	printk(KERN_INFO "%s: submit timer, timeout %d\n", __func__, timeout);
@@ -301,7 +304,7 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 	y = pData->pixel_y / pData->page_nr;
 	OLED.fb = kzalloc(x * y, GFP_KERNEL);
 
-	oled_request_gpios();
+	oled_init_gpios();
 	
 	printk(KERN_INFO "%s: oled_init()\n", __func__);
 	oled_init(&OLED);

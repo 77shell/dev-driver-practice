@@ -238,10 +238,17 @@ void oled_reset()
 
 void oled_paint(u8 byte)
 {
-	ssize_t page, pixel, page_offset;
-	ssize_t page_nr = pOLED->page_nr;
-	ssize_t pixel_x = pOLED->pixel_x;
-	u8 *fb = pOLED->fb;
+	ssize_t
+		page,
+		page_offset,
+		pixel,
+		page_nr,
+		pixel_x;
+	u8 *fb;
+
+	page_nr = pOLED->page_nr;
+	pixel_x = pOLED->pixel_x;
+	fb = pOLED->fb;
 
 	if (IS_ERR(fb)) {
 		printk(KERN_WARNING "%s: fb error\n", __func__);
