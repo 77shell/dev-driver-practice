@@ -51,5 +51,5 @@ done
 
 
 lsmod | grep cdata*
-dmesg | tail -n 10
+#dmesg | tail -n 10
 ls -l $DEVICE_NODE --color

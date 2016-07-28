@@ -18,9 +18,11 @@
 
 
 #include <linux/types.h>
+#include <linux/semaphore.h>
 
 
 struct oled_platform_data_t {
+	struct semaphore sem;
 	struct spi_device *spi;
 	unsigned int pixel_x;
 	unsigned int pixel_y;

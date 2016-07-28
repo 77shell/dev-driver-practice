@@ -26,7 +26,6 @@
 #include <linux/wait.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/semaphore.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/spi/spi.h>
@@ -300,16 +299,12 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 	       __func__, (unsigned long)OLED.spi);
 
 	/* Allocate memory */
-	x = pData->pixel_x;
-	y = pData->pixel_y / pData->page_nr;
+	x = OLED.pixel_x;
+	y = OLED.pixel_y / OLED.page_nr;
 	OLED.fb = kzalloc(x * y, GFP_KERNEL);
 
 	oled_init_gpios();
-	
-	printk(KERN_INFO "%s: oled_init()\n", __func__);
 	oled_init(&OLED);
-
-	printk(KERN_INFO "%s: oled_paint()\n", __func__);
 	oled_paint(0xaa);
 
 	ret = misc_register(&oled_ssd1308_miscdev);

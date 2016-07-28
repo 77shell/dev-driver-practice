@@ -25,7 +25,8 @@ CFLAGS += -iquote../../
 vpath %.c ../
 
 BINS := test \
-	test-fb-ssd1308
+	test-fb-ssd1308 \
+	test-oled-ssd1308
 
 .PHONY: all
 all: $(BINS)

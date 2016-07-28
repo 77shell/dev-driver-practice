@@ -43,7 +43,7 @@ static void _set_high_addr(u8 high);
 static void _raise_reset(void);
 static void _release_reset(void);
 
-static const struct oled_platform_data_t *pOLED;
+static struct oled_platform_data_t *pOLED;
 
 
 static int _spi_tx(u8 byte)
@@ -246,6 +246,9 @@ void oled_paint(u8 byte)
 		pixel_x;
 	u8 *fb;
 
+	down_interruptible(&pOLED->sem);
+	printk(KERN_INFO "%s: enter\n", __func__);
+	
 	page_nr = pOLED->page_nr;
 	pixel_x = pOLED->pixel_x;
 	fb = pOLED->fb;
@@ -257,11 +260,11 @@ void oled_paint(u8 byte)
 	
 	for(page=0; page<page_nr; page++) {
 		page_offset = page * pixel_x;
-		printk(KERN_INFO "%s: page_offset: %d\n", __func__, page_offset);
+		// printk(KERN_INFO "%s: page_offset: %d\n", __func__, page_offset);
 		for(pixel=0; pixel<pixel_x; pixel++)
 			fb[page_offset + pixel] = byte;
 	}
-	printk(KERN_INFO "%s: data copying done\n", __func__);
+	// printk(KERN_INFO "%s: data copying done\n", __func__);
 	
 	for(page=0; page<page_nr; page++)
 	{
@@ -270,11 +273,15 @@ void oled_paint(u8 byte)
 		_set_high_addr(0);
 		_write_data_batch(fb + page * pixel_x, pixel_x);
 	}
+
+	up(&pOLED->sem);
+	printk(KERN_INFO "%s: exit\n", __func__);
 }
 
 
 void oled_init(const struct oled_platform_data_t *oled)
 {
 	pOLED = oled;
+	sema_init(&pOLED->sem, 1);
 	oled_reset();
 }

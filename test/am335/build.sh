@@ -15,6 +15,7 @@ error_msg()
 declare -a TEST_APP=(
     test
     test-fb-ssd1308
+    test-oled-ssd1308
 )
 
 copy_files_to_remote()
