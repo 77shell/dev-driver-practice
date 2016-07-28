@@ -27,9 +27,10 @@ obj-m 	:= cdata.o \
 	cdata_plat_dev.o \
 	cdata_fb_ssd1308.o \
 	cdata_fb_plat_dev.o \
-	oled_ssd1308_spi.o \
-	oled_plat_dev.o
+	oled_plat_dev.o \
+	oled_ssd1308.o
 
+oled_ssd1308-objs := oled_ssd1308_spi.o oled_ssd1308_ctrl.o
 PWD 	:= $(shell pwd)
 
 

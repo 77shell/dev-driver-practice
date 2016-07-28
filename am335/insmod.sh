@@ -30,8 +30,8 @@ declare -a KO_FILE=(
     #cdata.ko
     #cdata_fb_plat_dev.ko
     #cdata_fb_ssd1308.ko
-    oled_ssd1308_spi.ko
     oled_plat_dev.ko
+    oled_ssd1308.ko
 )
 
 
@@ -51,5 +51,5 @@ done
 
 
 lsmod | grep cdata*
-dmesg | tail -n 40
+dmesg | tail -n 10
 ls -l $DEVICE_NODE --color

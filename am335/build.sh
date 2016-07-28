@@ -8,11 +8,11 @@
 
 REMOTE_DIR=~/remote/tpsbuserver-prj/GigaController/FW/modules
 declare -a KO_FILES=(
-    cdata_plat_dev.ko
-    cdata.ko
-    cdata_fb_plat_dev.ko
-    cdata_fb_ssd1308.ko
-    oled_ssd1308_spi.ko
+#    cdata_plat_dev.ko
+#    cdata.ko
+#    cdata_fb_plat_dev.ko
+#    cdata_fb_ssd1308.ko
+    oled_ssd1308.ko
     oled_plat_dev.ko
 )
     

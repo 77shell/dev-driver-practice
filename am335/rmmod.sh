@@ -22,10 +22,12 @@ declare -a DEVICE_NODES=(
 )
 
 declare -a KO=(
-    cdata_plat_dev.ko
-    cdata.ko
-    cdata_fb_plat_dev.ko
-    cdata_fb_ssd1308.ko
+#    cdata_plat_dev.ko
+#    cdata.ko
+#    cdata_fb_plat_dev.ko
+#    cdata_fb_ssd1308.ko
+    oled_ssd1308.ko
+    oled_plat_dev.ko
 )
 
 for i in ${KO[@]}
@@ -40,5 +42,6 @@ do
 	error_msg "$i is still there~" && \
 	exit 1
 done
-
-echo -e "\033[33mUninstall modules\033[0m"
+echo -e "\033[33m"
+lsmod
+echo -e "\nUninstall modules\033[0m"
