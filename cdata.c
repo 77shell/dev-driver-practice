@@ -173,7 +173,9 @@ repeat:
 		// return -ENOTTY;
 	}
 	
-	copy_from_user(&file_buf[data_index], buf, count);
+	if (copy_from_user(&file_buf[data_index], buf, count))
+		return 0;
+	
 	cdata->index += count;
 	printk(KERN_ALERT "%s: write %d-byte, buffer-index: %d\n", __func__, count, cdata->index);
 	return count;
@@ -192,7 +194,7 @@ static long cdata_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case IOCTL_EMPTY:
-		printk(KERN_ALERT "%s: empty: arg: %d\n", __func__, arg);
+		printk(KERN_ALERT "%s: empty: arg: %ld\n", __func__, arg);
 		for (i=0; i<BUFSIZE; i++)
 			buf[i] = 0;
 		p->index = 0;

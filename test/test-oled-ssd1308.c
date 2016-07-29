@@ -37,9 +37,30 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include "oled_ssd1308_ioctl.h"
 
 
 sig_atomic_t child_exit_status;
+
+
+static void
+print_usage(FILE *stream)
+{
+	fprintf(stream, "\nUsage: OLED test utility\n");
+	fprintf(stream,
+		"SYSNOPSIS:\n"
+		"   test-oled-ssd1308\n"
+		"\t-c\tclear screen\n"
+		"\t-o\tturn on screen\n"
+		"\t-i\tturn off screen\n"
+		"\t-f\tfeed screen with BYTE\n"
+		"\t-r\treset screen\n"
+		"\t-t\ttest times\n"
+		);
+	
+	exit(0);
+}
+
 
 void clean_up_child_proc(int sig_number, siginfo_t *info, void *p)
 {
@@ -55,7 +76,13 @@ void clean_up_child_proc(int sig_number, siginfo_t *info, void *p)
 
 int main(int argc, char *argv[])
 {
-	int fd, i;
+	int
+		fd,
+		i,
+		opt,
+		run = 0;
+
+	unsigned char feed;
 	char write_data[20] = { 0 };
 	ssize_t ret;
 	char *dev = "/dev/oled-ssd1308";
@@ -71,11 +98,13 @@ int main(int argc, char *argv[])
 	sigchld_action.sa_sigaction = clean_up_child_proc;
 	sigaction (SIGCHLD, &sigchld_action, NULL);
 
+#if 0
 	child = fork();
 	if (child == 0)
 		strcpy(write_data, "I'm a child");
 	else
 		strcpy(write_data, "I'm parent");
+#endif
 	
 	if ( (fd = open(dev, O_RDWR)) == -1 ) {
 		fprintf(stderr, "Open %s failed~\n", dev);
@@ -84,9 +113,33 @@ int main(int argc, char *argv[])
 	
 	fprintf(stderr, "Open %s successful!\n", dev);
 
-	for(i=0; i<100; i++) {
+	
+	while( (opt = getopt(argc, argv, ":rct:oif:")) != -1 )
+	{
+		switch(opt) {
+		case ':':
+		case '?': print_usage(stderr); break;
+		case 'c': ioctl(fd, OLED_CLEAR); break;
+		case 'o': ioctl(fd, OLED_ON); break;
+		case 'i': ioctl(fd, OLED_OFF); break;
+		case 'r': ioctl(fd, OLED_RESET); break;
+			
+		case 'f':
+			feed = (unsigned char)atoi(optarg);
+			ioctl(fd, OLED_FEED, &feed);
+			printf("Feed byte: 0x%X\n", feed);
+			break;
+			
+		case 't':
+			run = atoi(optarg);
+			printf("Run test %d times\n", run);
+			break;
+		}
+	}
+
+	for(i=0; i<run; i++) {
 		ret = write(fd, write_data, sizeof write_data);
-		printf("%s : %d\n", write_data, ret);
+		//printf("%s : %d\n", write_data, ret);
 	}
 	
 	close(fd);

@@ -89,12 +89,14 @@ static ssize_t cdata_fb_ssd1308_write(struct file *filp, const char __user *buf,
 	unsigned long timeout;
 
 	cdata = (struct cdata_fb_t*)filp->private_data;
-	down_interruptible(&cdata->sem);
+	if (down_interruptible(&cdata->sem))
+		return 0;
 	
 	worker_count  = cdata->worker_count;
 	timer_count   = cdata->timer_count;
 	tasklet_count = cdata->tasklet_count;
-	copy_from_user(cdata->data, buf, count);
+	if (copy_from_user(cdata->data, buf, count))
+		return 0;
 
 	/*
 	 * Schedule worker
@@ -112,7 +114,7 @@ static ssize_t cdata_fb_ssd1308_write(struct file *filp, const char __user *buf,
 		/* Parent process */
 		: 7 * HZ;
 	
-	printk(KERN_INFO "%s: submit timer, timeout %d\n", __func__, timeout);
+	printk(KERN_INFO "%s: submit timer, timeout %ld\n", __func__, timeout);
 	cdata->timer.expires = jiffies + timeout;
 	add_timer(&cdata->timer);
 

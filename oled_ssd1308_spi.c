@@ -32,7 +32,10 @@
 #include <linux/uaccess.h>
 #include <linux/gpio.h>
 #include "oled_ssd1308_spi.h"
+#include "oled_ssd1308_ioctl.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt) "%s:"fmt
 
 #define __WORKQUEUE
 
@@ -91,7 +94,7 @@ static int oled_init_gpios()
 
 	gpio_set_value(OLED.led1_pin, 0);
 	gpio_set_value(OLED.led2_pin, 0);
-	printk(KERN_INFO "%s\n", __func__);
+	pr_debug("\n", __func__);
 	return 0;
 }
 
@@ -109,7 +112,7 @@ static void oled_free_gpios()
 		gpio_free(gpios[i].pin);
 	
 	kfree(oled_gpios);
-	printk(KERN_INFO "%s\n", __func__);
+	pr_debug("\n", __func__);
 }
 
 
@@ -117,11 +120,7 @@ static void worker_func(struct work_struct *pWork)
 {
 	struct ssd1308_t *ssd;
 	ssd = container_of(pWork, struct ssd1308_t, worker);
-	
-#if 0
-	printk(KERN_INFO "%s: %s\n", __func__, cdata->data);
-	cdata->worker_count++;
-#endif
+	ssd->worker_count++;
 	wake_up_interruptible(&ssd->wait_q);
 }
 
@@ -150,7 +149,10 @@ static ssize_t oled_ssd1308_write(struct file *filp, const char __user *buf, siz
 	unsigned long timeout;
 
 	ssd = (struct ssd1308_t*)filp->private_data;
-	down_interruptible(&ssd->sem);
+	if (down_interruptible(&ssd->sem)) {
+		pr_debug("interrupted", __func__);
+		return 0;
+	}
 	
 	worker_count  = ssd->worker_count;
 	timer_count   = ssd->timer_count;
@@ -160,7 +162,7 @@ static ssize_t oled_ssd1308_write(struct file *filp, const char __user *buf, siz
 	/*
 	 * Schedule worker
 	 */
-	printk(KERN_INFO "%s: schedule worker\n", __func__);
+	pr_debug("schedule worker\n", __func__);
 	schedule_work(&ssd->worker);
 
 	/*
@@ -174,17 +176,16 @@ static ssize_t oled_ssd1308_write(struct file *filp, const char __user *buf, siz
 		/* Parent process */
 		: 7 * HZ;
 #else
-	timeout = 1 * HZ;
+	timeout = HZ / 10;
 #endif
-	
-	printk(KERN_INFO "%s: submit timer, timeout %d\n", __func__, timeout);
+	pr_debug("submit timer, timeout %ld\n", __func__, timeout);
 	ssd->timer.expires = jiffies + timeout;
 	add_timer(&ssd->timer);
 
 	/*
 	 * Schedule tasklet 
 	 */
-	printk(KERN_INFO "%s: schedule tasklet\n", __func__);
+	pr_debug("schedule tasklet\n", __func__);
 	tasklet_schedule(&ssd->tasklet);
 	
 	/*
@@ -197,31 +198,70 @@ REPEAT:
 	  && tasklet_count != ssd->tasklet_count )
 
 	wait_event_interruptible(ssd->wait_q, EVENTS());
-
-	if ( !EVENTS() )
-		goto REPEAT;
 	
-	printk(KERN_INFO "worker_count  : %d %d\n", worker_count, ssd->worker_count);
-	printk(KERN_INFO "timer_count   : %d %d\n", timer_count, ssd->timer_count);
-	printk(KERN_INFO "tasklet_count : %d %d\n", tasklet_count, ssd->tasklet_count);
+	pr_debug("worker_count  : %d %d\n", __func__, worker_count, ssd->worker_count);
+	pr_debug("timer_count   : %d %d\n", __func__, timer_count, ssd->timer_count);
+	pr_debug("tasklet_count : %d %d\n", __func__, tasklet_count, ssd->tasklet_count);
+
+	if ( !EVENTS() ) {
+		pr_debug("go REPEAT\n", __func__);
+		goto REPEAT;
+	}
+
 	up(&ssd->sem);
 	return count;
 }
 
+
 static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	u8 feed;
+	
+	switch(cmd) {
+	case OLED_CLEAR:
+		oled_paint((u8)0);
+		break;
+		
+	case OLED_RESET:
+		oled_reset();
+		break;
+		
+	case OLED_ON:
+		oled_on();
+		break;
+		
+	case OLED_OFF:
+		oled_off();
+		break;
+		
+	case OLED_FEED:
+	{
+		u8 __user *ptr = (void __user *)arg;
+		if (get_user(feed, ptr))
+			return -EFAULT;
+		oled_paint(feed);
+	}
+	break;
+		
+	default:
+		return -ENOTTY;
+	}
+	
+	pr_debug("cmd-%x\n", __func__, cmd);
 	return 0;
 }
+
 
 static int oled_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	return 0;
 }
 
+
 static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 {
 	struct ssd1308_t *ssd;
-	printk(KERN_INFO "%s\n", __func__);
+	pr_debug("enter\n", __func__);
 	
 	/* Allocate memory to private data, and set memory to zero */
 	ssd = kzalloc(sizeof(struct ssd1308_t), GFP_KERNEL);
@@ -289,13 +329,13 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 
 	pData = (struct oled_platform_data_t*)spi->dev.platform_data;
 	OLED = *pData;
-	printk(KERN_INFO "%s: %dx, %dy, %dreset, %dad, %p-spi\n",
+	pr_debug("%dx, %dy, %dreset, %dad, %p-spi\n",
 	       __func__,
 	       pData->pixel_x, pData->pixel_y,
 	       pData->reset_pin, pData->ad_pin, spi);
 
 	OLED.spi = spi;
-	printk(KERN_WARNING  "%s: spi_new_device(), 0x%x successful~\n",
+	pr_debug("spi_new_device(), 0x%lx successful~\n",
 	       __func__, (unsigned long)OLED.spi);
 
 	/* Allocate memory */
@@ -309,7 +349,7 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 
 	ret = misc_register(&oled_ssd1308_miscdev);
 	ret < 0
-		? printk(KERN_INFO "%s: Register OLED miscdev failed~\n", __func__)
+		? printk(KERN_WARNING "%s: Register OLED miscdev failed~\n", __func__)
 		: printk(KERN_INFO "%s: Register OLED miscdev successful~\n", __func__);
 	
 	return ret;
@@ -345,6 +385,4 @@ static struct spi_driver oled_ssd1308_driver = {
 
 
 module_spi_driver(oled_ssd1308_driver);
-
-
 MODULE_LICENSE("GPL");

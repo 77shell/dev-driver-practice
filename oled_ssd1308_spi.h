@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/semaphore.h>
+#include <linux/ioctl.h>
 
 
 struct oled_platform_data_t {
@@ -36,8 +37,10 @@ struct oled_platform_data_t {
 
 
 void oled_reset(void);
+void oled_on(void);
 void oled_off(void);
 void oled_paint(u8 byte);
-void oled_init(const struct oled_platform_data_t *);
+void oled_init(struct oled_platform_data_t *);
+
 
 #endif /* __OLED_SSD1308_SPI_H */

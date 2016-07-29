@@ -19,6 +19,8 @@
 #include <linux/err.h>
 #include "oled_ssd1308_spi.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt) "%s:"fmt
 
 enum DataCmd_e {
 	eCommand,
@@ -31,12 +33,7 @@ static void _set_dataMode(void);
 static void _set_cmdMode(void);
 static void _set_dc_pin(enum DataCmd_e data_cmd);
 static void _write_cmd(u8 cmd);
-static void _write_data(u8 data);
 static void _write_data_batch(u8 *pData, ssize_t len);
-static void _turnOn(void);
-static void _turnOff(void);
-static void set_xy_addr(u8 x, u8 y);
-static void _set_start_line(u8 line);
 static void _set_page_addr(u8 page);
 static void _set_lower_addr(u8 low);
 static void _set_high_addr(u8 high);
@@ -104,19 +101,13 @@ static void _write_cmd(u8 cmd)
 }
 
 
-static void _write_data(u8 data)
-{
-	_set_dc_pin(eData);
-	_spi_tx(data);
-}
-
 void _write_data_batch(u8 *pData, ssize_t len)
 {
 	_set_dc_pin(eData);
 	_spi_tx_batch(pData, len);
 }
 
-static void _turnOn()
+void oled_on()
 {
 	_write_cmd(0xafu);
 }
@@ -125,20 +116,6 @@ static void _turnOn()
 void oled_off()
 {
 	_write_cmd(0xaeu);
-}
-
-
-static void set_xy_addr(u8 x, u8 y)
-{
-	_set_page_addr(x);
-	_set_lower_addr(y & 0x0f);
-	_set_high_addr(y >> 4);
-}
-
-
-static void _set_start_line(u8 line)
-{
-	_write_cmd((line & 0x3fu) + 0x40u);
 }
 
 
@@ -231,7 +208,7 @@ void oled_reset()
 	_write_cmd(0xdbu);		/* Set VCOMH Level */
 	_write_cmd(0x30u);		/* 0x00: 0.65Vcc; 0x20: 0.77Vcc; 0x30: 0.83Vcc */	
 	
-	_turnOn();
+	oled_on();
 	printk(KERN_INFO "%s: complete\n", __func__);
 }
 
@@ -246,8 +223,8 @@ void oled_paint(u8 byte)
 		pixel_x;
 	u8 *fb;
 
-	down_interruptible(&pOLED->sem);
-	printk(KERN_INFO "%s: enter\n", __func__);
+	// down_interruptible(&pOLED->sem);
+	pr_debug("enter\n", __func__);
 	
 	page_nr = pOLED->page_nr;
 	pixel_x = pOLED->pixel_x;
@@ -255,7 +232,7 @@ void oled_paint(u8 byte)
 
 	if (IS_ERR(fb)) {
 		printk(KERN_WARNING "%s: fb error\n", __func__);
-		return 0;
+		return;
 	}
 	
 	for(page=0; page<page_nr; page++) {
@@ -274,12 +251,12 @@ void oled_paint(u8 byte)
 		_write_data_batch(fb + page * pixel_x, pixel_x);
 	}
 
-	up(&pOLED->sem);
-	printk(KERN_INFO "%s: exit\n", __func__);
+	// up(&pOLED->sem);
+	pr_debug("exit\n", __func__);
 }
 
 
-void oled_init(const struct oled_platform_data_t *oled)
+void oled_init(struct oled_platform_data_t *oled)
 {
 	pOLED = oled;
 	sema_init(&pOLED->sem, 1);
