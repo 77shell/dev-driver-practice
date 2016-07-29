@@ -12,6 +12,7 @@
  *  History:     ysh  7-25-2016          Create
  *************************************************************/
 
+//#define DEBUG
 
 #include <linux/delay.h>
 #include <linux/gpio.h>

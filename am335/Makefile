@@ -10,16 +10,6 @@
 
 include ./Makefile.inc
 
-DBG=y
-
-ifneq ($(DBG),y)
-	DEBUG=
-	OPTIMIZE=-O2
-else
-	DEBUG=-g
-	OPTIMIZE=-O0
-endif
-
 
 vpath %.c ../
 
