@@ -35,7 +35,7 @@ copy_files_to_remote()
     #
     for i in ${KO_FILES[@]}
     do
-	! cp ../$i $REMOTE_DIR && \
+	! cp $i $REMOTE_DIR && \
 	    error_msg $i
     done
 

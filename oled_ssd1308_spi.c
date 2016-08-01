@@ -12,20 +12,14 @@
  *  History:     ysh  7-07-2016          Create
  *************************************************************/
 
-//#define DEBUG
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
-#include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
-#include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <linux/input.h>
-#include <linux/wait.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
@@ -57,64 +51,9 @@ struct ssd1308_t {
 };
 
 
-struct gpio_t {
-	unsigned pin;
-	unsigned long flag;
-	char *label;
-};
-
 struct oled_platform_data_t OLED;
-static struct gpio_t *oled_gpios = NULL;
-static ssize_t oled_gpio_nr = 0;
-static int oled_init_gpios(void);
-static void oled_free_gpios(void);
-
-
-static int oled_init_gpios()
-{	
-	ssize_t i;
-	int err;
-	struct gpio_t gpios[] = {
-		{ OLED.reset_pin, GPIOF_DIR_OUT, "OLED-Reset-Pin" },
-		{ OLED.ad_pin,    GPIOF_DIR_OUT, "OLED-AD-Pin"    },
-		{ OLED.led1_pin,  GPIOF_DIR_OUT, "LED1-Pin"       },
-		{ OLED.led2_pin,  GPIOF_DIR_OUT, "LED2-Pin"       }
-	};
-	
-	oled_gpio_nr = ARRAY_SIZE(gpios);
-	oled_gpios = kzalloc(sizeof gpios, GFP_KERNEL);
-	memcpy(oled_gpios, gpios, sizeof gpios);
-	
-	for (i=0; i<oled_gpio_nr; i++) {
-		err = gpio_request_one(gpios[i].pin,
-				       gpios[i].flag, gpios[i].label);
-		if (err)
-			printk(KERN_WARNING "%s: Request GPIO-%d failed~\n",
-		       __func__, gpios[i].pin);
-	}
-
-	gpio_set_value(OLED.led1_pin, 0);
-	gpio_set_value(OLED.led2_pin, 0);
-	pr_debug("\n", __func__);
-	return 0;
-}
-
-
-static void oled_free_gpios()
-{	
-	ssize_t i;
-	ssize_t gpio_nr = oled_gpio_nr;
-	struct gpio_t *gpios = oled_gpios;
-	
-	gpio_set_value(OLED.led1_pin, 1);
-	gpio_set_value(OLED.led2_pin, 1);
-	
-	for (i=0; i<gpio_nr; i++)
-		gpio_free(gpios[i].pin);
-	
-	kfree(oled_gpios);
-	pr_debug("\n", __func__);
-}
+extern int oled_init_gpios(struct oled_platform_data_t *oled);
+extern void oled_free_gpios(void);
 
 
 static void worker_func(struct work_struct *pWork)
@@ -344,7 +283,7 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 	y = OLED.pixel_y / OLED.page_nr;
 	OLED.fb = kzalloc(x * y, GFP_KERNEL);
 
-	oled_init_gpios();
+	oled_init_gpios(&OLED);
 	oled_init(&OLED);
 	oled_paint(0xaa);
 

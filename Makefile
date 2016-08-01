@@ -18,7 +18,9 @@ obj-m := cdata.o \
 	oled_ssd1308.o
 
 oled_ssd1308-objs := oled_ssd1308_spi.o \
-			oled_ssd1308_ctrl.o
+			oled_ssd1308_ctrl.o \
+			oled_ssd1308_gpio.o
+
 
 KDIR := /usr/src/linux-headers-$(shell uname -r)
 PWD := $(shell pwd)
