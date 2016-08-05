@@ -32,6 +32,7 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "%s:"fmt
 
+#define FLUSH_RATE_DEFAULT 200 /* ms */
 #define __WORKQUEUE
 
 #define PIXEL_X    128
@@ -43,9 +44,12 @@ struct ssd1308_t {
 	struct work_struct worker;
 	struct timer_list timer;
 	struct tasklet_struct tasklet;
+	struct workqueue_struct *wq;
+	int del_wq;
 	int worker_count;
 	int timer_count;
 	int tasklet_count;
+	unsigned long flush_rate;
 
 	struct oled_platform_data_t platform_data;
 };
@@ -60,94 +64,41 @@ static void worker_func(struct work_struct *pWork)
 {
 	struct ssd1308_t *ssd;
 	ssd = container_of(pWork, struct ssd1308_t, worker);
-	ssd->worker_count++;
-	wake_up_interruptible(&ssd->wait_q);
+
+	while (ssd->del_wq != 1) {
+		oled_flush();
+		msleep(ssd->flush_rate);
+	}
+	pr_debug("exit worker_func, flush_rate: %ldms\n", __func__, ssd->flush_rate);
 }
 
 
+#ifdef __TIMER
 static void timer_func(unsigned long pSSD)
 {
 	struct ssd1308_t *ssd = (struct ssd1308_t*)pSSD;
+	unsigned long expired = jiffies + HZ / 10;
 	ssd->timer_count++;
-	oled_paint((u8)(ssd->timer_count));
-	wake_up_interruptible(&ssd->wait_q);
+	oled_flush();
+	mod_timer(&ssd->timer, expired);
 }
-
-
-static void tasklet_func(unsigned long pSSD)
-{
-	struct ssd1308_t *ssd = (struct ssd1308_t*)pSSD;
-	ssd->tasklet_count++;
-	wake_up_interruptible(&ssd->wait_q);
-}
+#endif
 
 
 static ssize_t oled_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	struct ssd1308_t *ssd;
-	int worker_count, timer_count, tasklet_count;
-	unsigned long timeout;
-
+	u8 b;
+	
 	ssd = (struct ssd1308_t*)filp->private_data;
 	if (down_interruptible(&ssd->sem)) {
 		pr_debug("interrupted", __func__);
 		return 0;
 	}
 	
-	worker_count  = ssd->worker_count;
-	timer_count   = ssd->timer_count;
-	tasklet_count = ssd->tasklet_count;
-	//copy_from_user(ssd->data, buf, count);
-
-	/*
-	 * Schedule worker
-	 */
-	pr_debug("schedule worker\n", __func__);
-	schedule_work(&ssd->worker);
-
-	/*
-	 * Schedule kernel timer
-	 */
-#if 0
-	timeout = strstr(ssd->data, "child") != NULL
-		/* Child process */
-		? 1 * HZ
-		
-		/* Parent process */
-		: 7 * HZ;
-#else
-	timeout = HZ / 10;
-#endif
-	pr_debug("submit timer, timeout %ld\n", __func__, timeout);
-	ssd->timer.expires = jiffies + timeout;
-	add_timer(&ssd->timer);
-
-	/*
-	 * Schedule tasklet 
-	 */
-	pr_debug("schedule tasklet\n", __func__);
-	tasklet_schedule(&ssd->tasklet);
+	if (!get_user(b, buf))
+		oled_paint(b);
 	
-	/*
-	 * Blocking I/O
-	 */
-REPEAT:
-#define EVENTS()					\
-	( worker_count != ssd->worker_count		\
-	  && timer_count   != ssd->timer_count	\
-	  && tasklet_count != ssd->tasklet_count )
-
-	wait_event_interruptible(ssd->wait_q, EVENTS());
-	
-	pr_debug("worker_count  : %d %d\n", __func__, worker_count, ssd->worker_count);
-	pr_debug("timer_count   : %d %d\n", __func__, timer_count, ssd->timer_count);
-	pr_debug("tasklet_count : %d %d\n", __func__, tasklet_count, ssd->tasklet_count);
-
-	if ( !EVENTS() ) {
-		pr_debug("go REPEAT\n", __func__);
-		goto REPEAT;
-	}
-
 	up(&ssd->sem);
 	return count;
 }
@@ -155,8 +106,6 @@ REPEAT:
 
 static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	u8 feed;
-	
 	switch(cmd) {
 	case OLED_CLEAR:
 		oled_paint((u8)0);
@@ -176,10 +125,20 @@ static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned lon
 		
 	case OLED_FEED:
 	{
+		u8 feed;
 		u8 __user *ptr = (void __user *)arg;
+		
 		if (get_user(feed, ptr))
 			return -EFAULT;
 		oled_paint(feed);
+	}
+	break;
+
+	case OLED_FLUSH_RATE:
+	{
+		struct ssd1308_t *ssd = (struct ssd1308_t*)filp->private_data;
+		pr_debug("New flush rate : %ldms\n", __func__, arg);
+		ssd->flush_rate = arg;
 	}
 	break;
 		
@@ -201,25 +160,37 @@ static int oled_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 {
 	struct ssd1308_t *ssd;
+	
 	pr_debug("enter\n", __func__);
 	
 	/* Allocate memory to private data, and set memory to zero */
 	ssd = kzalloc(sizeof(struct ssd1308_t), GFP_KERNEL);
 	filp->private_data = ssd;
 
-	init_waitqueue_head(&ssd->wait_q);
 	sema_init(&ssd->sem, 1);
 
-	/* Init work queue */
+	/* work queue */
+	ssd->wq = create_singlethread_workqueue("oled-flush");
+	ssd->del_wq = 0;
+	ssd->flush_rate = FLUSH_RATE_DEFAULT;
 	INIT_WORK(&ssd->worker, worker_func);
+	queue_work(ssd->wq, &ssd->worker);
 
+#ifdef __SHARED_QU
+	schedule_work(&ssd->worker);
+#endif
+
+#ifdef __TIMER
 	/* Init timer */
 	init_timer(&ssd->timer);
 	ssd->timer.function = timer_func;
 	ssd->timer.data = (unsigned long)ssd;
+	timeout = HZ / 10;
+	ssd->timer.expires = jiffies + timeout;
+	add_timer(&ssd->timer);
+	oled_paint(0xff);
+#endif
 
-	/* Init tasklet */
-	tasklet_init(&ssd->tasklet, tasklet_func, (unsigned long)ssd);
 	return 0;
 }
 
@@ -228,7 +199,15 @@ static int oled_ssd1308_close(struct inode *inode, struct file *filp)
 	struct ssd1308_t *ssd;
 
 	ssd = (struct ssd1308_t*)filp->private_data;
+
+#ifdef __TIMER
 	del_timer_sync(&ssd->timer);
+#endif
+
+	ssd->del_wq = 1;
+	msleep(ssd->flush_rate);
+	flush_workqueue(ssd->wq);
+	destroy_workqueue(ssd->wq);
 	kfree(filp->private_data);
 	return 0;
 }
@@ -285,7 +264,6 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 
 	oled_init_gpios(&OLED);
 	oled_init(&OLED);
-	oled_paint(0xaa);
 
 	ret = misc_register(&oled_ssd1308_miscdev);
 	ret < 0

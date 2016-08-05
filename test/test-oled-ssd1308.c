@@ -56,6 +56,7 @@ print_usage(FILE *stream)
 		"\t-f\tfeed screen with BYTE\n"
 		"\t-r\treset screen\n"
 		"\t-t\ttest times\n"
+		"\t-u\tflush rate (ms)\n"
 		);
 	
 	exit(0);
@@ -81,13 +82,12 @@ int main(int argc, char *argv[])
 		i,
 		opt,
 		run = 0;
-
-	unsigned char feed;
 	char write_data[20] = { 0 };
 	ssize_t ret;
 	char *dev = "/dev/oled-ssd1308";
 	pid_t child;
 	struct sigaction sigchld_action;
+	const useconds_t _1s = 1000000;
 
 	/*
 	 * If child process completes earlier than parent process,
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "Open %s successful!\n", dev);
 
 	
-	while( (opt = getopt(argc, argv, ":rct:oif:")) != -1 )
+	while( (opt = getopt(argc, argv, ":rct:oif:u:")) != -1 )
 	{
 		switch(opt) {
 		case ':':
@@ -125,23 +125,39 @@ int main(int argc, char *argv[])
 		case 'r': ioctl(fd, OLED_RESET); break;
 			
 		case 'f':
+		{
+			unsigned char feed;
 			feed = (unsigned char)atoi(optarg);
 			ioctl(fd, OLED_FEED, &feed);
 			printf("Feed byte: 0x%X\n", feed);
-			break;
+		}
+		break;
 			
 		case 't':
 			run = atoi(optarg);
 			printf("Run test %d times\n", run);
 			break;
+
+		case 'u':
+		{
+			unsigned long rate;
+			rate = (unsigned long)atoi(optarg);
+			ioctl(fd, OLED_FLUSH_RATE, rate);
+			printf("Flush rate : %lums\n", rate);
+		}
+		break;
 		}
 	}
-
-	for(i=0; i<run; i++) {
-		ret = write(fd, write_data, sizeof write_data);
-		//printf("%s : %d\n", write_data, ret);
-	}
 	
+	for(i=0; i<run; i++) {
+		unsigned char b = (unsigned char)i;
+		ret = write(fd, &b, sizeof(unsigned char));
+		printf("%s : %d\n", __func__, i);
+		usleep(_1s / 2);
+	}
+
+	printf("Press any key to quit!");
+	getchar();
 	close(fd);
 	
 	exit(EXIT_SUCCESS);

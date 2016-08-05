@@ -40,6 +40,7 @@ void oled_reset(void);
 void oled_on(void);
 void oled_off(void);
 void oled_paint(u8 byte);
+void oled_flush(void);
 void oled_init(struct oled_platform_data_t *);
 
 

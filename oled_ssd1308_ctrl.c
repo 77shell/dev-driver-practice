@@ -213,6 +213,37 @@ void oled_reset()
 }
 
 
+void oled_flush()
+{
+	ssize_t
+		page,
+		page_nr,
+		pixel_x;
+	u8 *fb;
+
+	pr_debug("enter\n", __func__);
+	
+	page_nr = pOLED->page_nr;
+	pixel_x = pOLED->pixel_x;
+	fb = pOLED->fb;
+
+	if (IS_ERR(fb)) {
+		printk(KERN_WARNING "%s: fb error\n", __func__);
+		return;
+	}
+	
+	for(page=0; page<page_nr; page++)
+	{
+		_set_page_addr(page);
+		_set_lower_addr(0);
+		_set_high_addr(0);
+		_write_data_batch(fb + page * pixel_x, pixel_x);
+	}
+
+	pr_debug("exit\n", __func__);
+}
+
+
 void oled_paint(u8 byte)
 {
 	ssize_t
@@ -237,20 +268,12 @@ void oled_paint(u8 byte)
 	
 	for(page=0; page<page_nr; page++) {
 		page_offset = page * pixel_x;
-		// printk(KERN_INFO "%s: page_offset: %d\n", __func__, page_offset);
+		pr_debug("page_offset: %d\n", __func__, page_offset);
 		for(pixel=0; pixel<pixel_x; pixel++)
 			fb[page_offset + pixel] = byte;
 	}
-	// printk(KERN_INFO "%s: data copying done\n", __func__);
+	pr_debug("data copying done\n", __func__);
 	
-	for(page=0; page<page_nr; page++)
-	{
-		_set_page_addr(page);
-		_set_lower_addr(0);
-		_set_high_addr(0);
-		_write_data_batch(fb + page * pixel_x, pixel_x);
-	}
-
 	// up(&pOLED->sem);
 	pr_debug("exit\n", __func__);
 }
