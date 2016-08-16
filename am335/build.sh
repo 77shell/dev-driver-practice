@@ -64,6 +64,14 @@ case $1 in
 	exit 0
 	;;
 
+    test)
+	echo -e "\033[33m\nBuild test program\033[0m"
+	pushd .
+	cd ../test/am335
+	./build.sh && ./build.sh install
+	popd
+	;;
+
     *)
 	. ./setup.sh
 	make

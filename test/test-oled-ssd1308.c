@@ -32,15 +32,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stropts.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
+#include <pthread.h>
 #include "oled_ssd1308_ioctl.h"
 
 
 sig_atomic_t child_exit_status;
+static pthread_mutex_t Mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 static void
@@ -53,14 +60,68 @@ print_usage(FILE *stream)
 		"\t-c\tclear screen\n"
 		"\t-o\tturn on screen\n"
 		"\t-i\tturn off screen\n"
-		"\t-f\tfeed screen with BYTE\n"
+		"\t-f feed-byte\tfeed screen with BYTE\n"
 		"\t-r\treset screen\n"
 		"\t-t\ttest times\n"
 		"\t-u\tflush rate (ms)\n"
+		"\t-m feed-byte\ttest mmap()\n"
 		);
 	
 	exit(0);
 }
+
+struct Threadpara_t {
+	int fd;
+	unsigned char feed;
+};
+
+static void*
+_thread_test_mmap(void *ptr)
+{
+	struct Threadpara_t *th = (struct Threadpara_t*)ptr;
+	size_t grey_area = 0;
+	size_t j, len = 128 * 64 / 8;
+	unsigned char *map;
+	const useconds_t _1s = 1000000;
+	
+	map = (unsigned char*)mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, th->fd, 0);
+	if (map == MAP_FAILED) {
+		printf("mmap() failed!\n");
+		return (void*)-1;
+	}
+
+	printf("map : %p, feed : 0x%X\n", map, th->feed);
+	bool quit;
+	int ret;
+	
+	for (quit = false; !quit;)
+	{		
+		if ((ret = pthread_mutex_trylock(&Mutex)) == 0)
+			quit = true;
+		
+		for (j = 0; j < len; j++) {
+			if (j == grey_area) {
+				size_t i = 0;
+				for (i = 0; i < 128; i++, j++)
+					map[j] = 0;
+			}
+			else {
+				map[j] = th->feed;
+			}
+		}
+
+		grey_area += 128;
+		if (grey_area >= len)
+			grey_area = 0;
+
+		usleep(_1s / 2);
+	}
+	
+	munmap(map, len);
+	printf("Thread was terminated!\n");
+	return (void*)0;
+}
+
 
 
 void clean_up_child_proc(int sig_number, siginfo_t *info, void *p)
@@ -80,8 +141,7 @@ int main(int argc, char *argv[])
 	int
 		fd,
 		i,
-		opt,
-		run = 0;
+		opt;
 	char write_data[20] = { 0 };
 	ssize_t ret;
 	char *dev = "/dev/oled-ssd1308";
@@ -114,7 +174,7 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "Open %s successful!\n", dev);
 
 	
-	while( (opt = getopt(argc, argv, ":rct:oif:u:")) != -1 )
+	while( (opt = getopt(argc, argv, ":rct:oif:u:m:")) != -1 )
 	{
 		switch(opt) {
 		case ':':
@@ -123,7 +183,7 @@ int main(int argc, char *argv[])
 		case 'o': ioctl(fd, OLED_ON); break;
 		case 'i': ioctl(fd, OLED_OFF); break;
 		case 'r': ioctl(fd, OLED_RESET); break;
-			
+
 		case 'f':
 		{
 			unsigned char feed;
@@ -134,9 +194,17 @@ int main(int argc, char *argv[])
 		break;
 			
 		case 't':
-			run = atoi(optarg);
+		{
+			int run = atoi(optarg);
 			printf("Run test %d times\n", run);
-			break;
+			for (i=0; i<run; i++) {
+				unsigned char b = (unsigned char)i;
+				ret = write(fd, &b, sizeof(unsigned char));
+				printf("%s : %d\n", __func__, i);
+				usleep(_1s / 2);
+			}
+		}
+		break;
 
 		case 'u':
 		{
@@ -146,16 +214,28 @@ int main(int argc, char *argv[])
 			printf("Flush rate : %lums\n", rate);
 		}
 		break;
+
+		case 'm':
+		{
+			struct Threadpara_t para = {
+				.fd = fd,
+				.feed = (unsigned char)atoi(optarg)
+			};
+			pthread_t thread_id;
+			int event;
+			
+			pthread_mutex_lock(&Mutex);
+			pthread_create(&thread_id, NULL, &_thread_test_mmap, (void*)&para);
+			getchar();
+			pthread_mutex_unlock(&Mutex);
+			pthread_join(thread_id, (void**)&event);
+		}
+		break;
+
+		default: break;
 		}
 	}
 	
-	for(i=0; i<run; i++) {
-		unsigned char b = (unsigned char)i;
-		ret = write(fd, &b, sizeof(unsigned char));
-		printf("%s : %d\n", __func__, i);
-		usleep(_1s / 2);
-	}
-
 	printf("Press any key to quit!");
 	getchar();
 	close(fd);

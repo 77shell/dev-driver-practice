@@ -32,6 +32,7 @@ struct oled_platform_data_t {
 	unsigned ad_pin;
 	unsigned led1_pin;
 	unsigned led2_pin;
+	unsigned int fb_size;
 	u8 *fb;
 };
 

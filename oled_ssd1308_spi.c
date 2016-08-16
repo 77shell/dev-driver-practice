@@ -26,14 +26,18 @@
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
 #include <linux/gpio.h>
+#include <asm/io.h>
+#include <asm/page.h>
 #include "oled_ssd1308_spi.h"
 #include "oled_ssd1308_ioctl.h"
 
 #undef pr_fmt
-#define pr_fmt(fmt) "%s:"fmt
+#define pr_fmt(fmt) "%s: "fmt
 
 #define FLUSH_RATE_DEFAULT 200 /* ms */
-#define __WORKQUEUE
+#define __SINGLE_WQ
+//#define __SHARED_QU
+//#define __TIMER
 
 #define PIXEL_X    128
 #define PIXEL_Y     64
@@ -51,7 +55,7 @@ struct ssd1308_t {
 	int tasklet_count;
 	unsigned long flush_rate;
 
-	struct oled_platform_data_t platform_data;
+	struct oled_platform_data_t *platform_data;
 };
 
 
@@ -60,6 +64,7 @@ extern int oled_init_gpios(struct oled_platform_data_t *oled);
 extern void oled_free_gpios(void);
 
 
+#ifdef __SINGLE_WQ
 static void worker_func(struct work_struct *pWork)
 {
 	struct ssd1308_t *ssd;
@@ -68,9 +73,11 @@ static void worker_func(struct work_struct *pWork)
 	while (ssd->del_wq != 1) {
 		oled_flush();
 		msleep(ssd->flush_rate);
+		// printk(KERN_WARNING "*fb : 0x%X\n", *ssd->platform_data->fb);
 	}
-	pr_debug("exit worker_func, flush_rate: %ldms\n", __func__, ssd->flush_rate);
+	pr_debug("exit, flush_rate: %ldms\n", __func__, ssd->flush_rate);
 }
+#endif
 
 
 #ifdef __TIMER
@@ -153,6 +160,34 @@ static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned lon
 
 static int oled_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+	struct ssd1308_t *ssd = (struct ssd1308_t*)filp->private_data;
+	struct oled_platform_data_t *oled = ssd->platform_data;
+	int ret;
+	phys_addr_t phys = virt_to_phys((void*)oled->fb);
+
+	pr_debug("enter\n", __func__);
+	pr_debug("oled->fb: %p\n", __func__, oled->fb);
+	pr_debug("oled->fb_size: %d\n", __func__, oled->fb_size);
+	pr_debug("virt_to_phys((void*)oled->fb) : %p >> PAGE_SHIFT : %p\n",
+		 __func__,
+		 phys,
+		 phys >> PAGE_SHIFT);
+	
+	pr_debug("vma->vm_end: %lx\n", __func__, vma->vm_end);
+	pr_debug("vma->vm_start: %lx\n", __func__, vma->vm_start);
+	pr_debug("size: %lu\n", __func__, vma->vm_end - vma->vm_start);
+	
+	ret = remap_pfn_range(vma,
+			      vma->vm_start,
+			      phys >> PAGE_SHIFT,
+			      vma->vm_end - vma->vm_start,
+			      vma->vm_page_prot);
+	if (ret < 0) {
+		printk(KERN_WARNING "%s: remap_pfn_range failed\n", __func__);
+		return -EIO;
+	}
+
+	pr_debug("exit\n", __func__);
 	return 0;
 }
 
@@ -165,16 +200,20 @@ static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 	
 	/* Allocate memory to private data, and set memory to zero */
 	ssd = kzalloc(sizeof(struct ssd1308_t), GFP_KERNEL);
+	ssd->platform_data = &OLED;
 	filp->private_data = ssd;
 
 	sema_init(&ssd->sem, 1);
 
 	/* work queue */
-	ssd->wq = create_singlethread_workqueue("oled-flush");
 	ssd->del_wq = 0;
 	ssd->flush_rate = FLUSH_RATE_DEFAULT;
 	INIT_WORK(&ssd->worker, worker_func);
+
+#ifdef __SINGLE_WQ
+	ssd->wq = create_singlethread_workqueue("oled-flush");
 	queue_work(ssd->wq, &ssd->worker);
+#endif
 
 #ifdef __SHARED_QU
 	schedule_work(&ssd->worker);
@@ -191,6 +230,7 @@ static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 	oled_paint(0xff);
 #endif
 
+	pr_debug("exit\n", __func__);
 	return 0;
 }
 
@@ -199,16 +239,21 @@ static int oled_ssd1308_close(struct inode *inode, struct file *filp)
 	struct ssd1308_t *ssd;
 
 	ssd = (struct ssd1308_t*)filp->private_data;
+	pr_debug("enter\n", __func__);
 
 #ifdef __TIMER
 	del_timer_sync(&ssd->timer);
 #endif
 
+#ifdef __SINGLE_WQ
 	ssd->del_wq = 1;
 	msleep(ssd->flush_rate);
 	flush_workqueue(ssd->wq);
 	destroy_workqueue(ssd->wq);
+#endif
+	
 	kfree(filp->private_data);
+	pr_debug("exit\n", __func__);
 	return 0;
 }
 
@@ -234,6 +279,7 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 	int ret;
 	unsigned int x, y;
 	struct oled_platform_data_t *pData;
+	ssize_t page_nr, fb;
 
 	if (!spi) {
 		printk(KERN_WARNING "%s: spi is null. Device is not accessible\n",
@@ -260,11 +306,15 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 	/* Allocate memory */
 	x = OLED.pixel_x;
 	y = OLED.pixel_y / OLED.page_nr;
-	OLED.fb = kzalloc(x * y, GFP_KERNEL);
+	OLED.fb_size = x * y;
+	fb = OLED.fb_size;
+	for (page_nr = 1; fb > PAGE_SIZE; page_nr++, fb -= PAGE_SIZE);
+	OLED.fb = kzalloc(PAGE_SIZE * page_nr, GFP_KERNEL);
 
 	oled_init_gpios(&OLED);
 	oled_init(&OLED);
 
+	pr_debug("before misc_register", __func__);
 	ret = misc_register(&oled_ssd1308_miscdev);
 	ret < 0
 		? printk(KERN_WARNING "%s: Register OLED miscdev failed~\n", __func__)

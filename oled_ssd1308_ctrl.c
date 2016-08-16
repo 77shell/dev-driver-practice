@@ -281,7 +281,9 @@ void oled_paint(u8 byte)
 
 void oled_init(struct oled_platform_data_t *oled)
 {
+	pr_debug("enter\n", __func__);
 	pOLED = oled;
 	sema_init(&pOLED->sem, 1);
 	oled_reset();
+	pr_debug("exit\n", __func__);
 }

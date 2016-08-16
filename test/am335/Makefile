@@ -20,7 +20,7 @@ else
 	OPTIMIZE=-O0
 endif
 
-CFLAGS += -iquote../../
+CFLAGS += -iquote../../ -lpthread
 
 vpath %.c ../
 
