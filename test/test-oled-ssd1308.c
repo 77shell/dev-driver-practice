@@ -47,7 +47,6 @@
 
 
 sig_atomic_t child_exit_status;
-static pthread_mutex_t Mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 static void
@@ -72,17 +71,32 @@ print_usage(FILE *stream)
 
 struct Threadpara_t {
 	int fd;
+	int row;
 	unsigned char feed;
+	pthread_t th_id;
+	pthread_mutex_t mutex;
 };
+
 
 static void*
 _thread_test_mmap(void *ptr)
 {
 	struct Threadpara_t *th = (struct Threadpara_t*)ptr;
-	size_t grey_area = 0;
-	size_t j, len = 128 * 64 / 8;
+	size_t i, j, k, len = 128 * 64 / 8;
+	size_t
+		row_len = 128,
+		row_start = th->row * row_len,
+		row_end = row_start + row_len - 1;
+	size_t
+		grey_area = 0,
+		grey_area_width = 8,
+		grey_area_start = th->row * grey_area_width,
+		grey_area_end;
+
 	unsigned char *map;
+	bool quit;
 	const useconds_t _1s = 1000000;
+	unsigned char a, b;
 	
 	map = (unsigned char*)mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, th->fd, 0);
 	if (map == MAP_FAILED) {
@@ -91,18 +105,18 @@ _thread_test_mmap(void *ptr)
 	}
 
 	printf("map : %p, feed : 0x%X\n", map, th->feed);
-	bool quit;
-	int ret;
+	k = th->row;
 	
 	for (quit = false; !quit;)
 	{		
-		if ((ret = pthread_mutex_trylock(&Mutex)) == 0)
+		if (pthread_mutex_trylock(&th->mutex) == 0)
 			quit = true;
-		
+
+#if 0 /* Bar */
 		for (j = 0; j < len; j++) {
 			if (j == grey_area) {
 				size_t i = 0;
-				for (i = 0; i < 128; i++, j++)
+				for (i = 0; i < 64; i++, j++)
 					map[j] = 0;
 			}
 			else {
@@ -110,18 +124,57 @@ _thread_test_mmap(void *ptr)
 			}
 		}
 
-		grey_area += 128;
+		grey_area += 64;
 		if (grey_area >= len)
 			grey_area = 0;
+		
+#elif 0 /* Wave */
 
-		usleep(_1s / 2);
+		for (j=row_start; j<=row_end; j++)
+			map[j] = 0xff;
+
+		grey_area_start += grey_area_width;
+		grey_area_start %= row_len;
+		grey_area_end = grey_area_start + grey_area_width;
+
+		j = row_start + grey_area_start;
+		k = j + grey_area_width;
+
+		for (; j<k; j++)
+			map[j] = 0;
+		
+#else /* Chess board */
+		
+		j = row_start;
+		k++;
+		if (k % 2) {
+			a = th->feed;
+			b = 0;
+		}
+		else {
+			a = 0;
+			b = th->feed;
+		}
+		
+		for (; j<=row_end; j++) {
+			for (i=0; i<8; i++, j++)
+				map[j] = a;
+			
+			if (j >= row_end)
+				break;
+			
+			for (i=0; i<8; i++, j++)
+				map[j] = b;
+		}
+#endif
+
+		usleep(_1s);
 	}
 	
 	munmap(map, len);
-	printf("Thread was terminated!\n");
+	printf("Thread (0x%lX) was terminated!\n", th->th_id);
 	return (void*)0;
 }
-
 
 
 void clean_up_child_proc(int sig_number, siginfo_t *info, void *p)
@@ -217,18 +270,32 @@ int main(int argc, char *argv[])
 
 		case 'm':
 		{
-			struct Threadpara_t para = {
-				.fd = fd,
-				.feed = (unsigned char)atoi(optarg)
-			};
-			pthread_t thread_id;
+			int i;
+			const int thread_nr = 8;
+			struct Threadpara_t para[thread_nr];
+			unsigned char feed = (unsigned char)atoi(optarg);
 			int event;
 			
-			pthread_mutex_lock(&Mutex);
-			pthread_create(&thread_id, NULL, &_thread_test_mmap, (void*)&para);
+			for (i=0; i<thread_nr; i++) {
+				para[i].fd = fd;
+				para[i].row = i;
+				para[i].feed = feed;
+				pthread_mutex_init(&para[i].mutex, NULL);
+				pthread_mutex_lock(&para[i].mutex);
+			}
+			
+			for (i=0; i<thread_nr; i++)
+				pthread_create(&para[i].th_id, NULL, &_thread_test_mmap, (void*)&para[i]);
+			
 			getchar();
-			pthread_mutex_unlock(&Mutex);
-			pthread_join(thread_id, (void**)&event);
+			for (i=0; i<thread_nr; i++)
+				pthread_mutex_unlock(&para[i].mutex);
+			
+			for (i=0; i<thread_nr; i++)
+				pthread_join(para[i].th_id, (void**)&event);
+
+			for (i=0; i<thread_nr; i++)
+				pthread_mutex_destroy(&para[i].mutex);
 		}
 		break;
 
