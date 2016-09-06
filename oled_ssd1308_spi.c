@@ -35,8 +35,8 @@
 #define pr_fmt(fmt) "%s: "fmt
 
 #define FLUSH_RATE_DEFAULT 200 /* ms */
-#define __SINGLE_WQ
-//#define __SHARED_QU
+//#define __SINGLE_WQ
+#define __SHARED_QU
 //#define __TIMER
 
 #define PIXEL_X    128
@@ -46,6 +46,7 @@ struct ssd1308_t {
 	wait_queue_head_t wait_q;
 	struct semaphore sem;
 	struct work_struct worker;
+	struct delayed_work dworker;
 	struct timer_list timer;
 	struct tasklet_struct tasklet;
 	struct workqueue_struct *wq;
@@ -53,7 +54,7 @@ struct ssd1308_t {
 	int worker_count;
 	int timer_count;
 	int tasklet_count;
-	unsigned long flush_rate;
+	unsigned long flush_rate_ms;
 
 	struct oled_platform_data_t *platform_data;
 };
@@ -72,10 +73,27 @@ static void worker_func(struct work_struct *pWork)
 
 	while (ssd->del_wq != 1) {
 		oled_flush();
-		msleep(ssd->flush_rate);
+		msleep(ssd->flush_rate_ms);
 		// printk(KERN_WARNING "*fb : 0x%X\n", *ssd->platform_data->fb);
 	}
-	pr_debug("exit, flush_rate: %ldms\n", __func__, ssd->flush_rate);
+	ssd->del_wq = 2;
+	pr_debug("exit, flush_rate: %ldms\n", __func__, ssd->flush_rate_ms);
+}
+
+#elif defined(__SHARED_QU)
+
+static void dworker_func(struct delayed_work *pWork)
+{
+	struct ssd1308_t *ssd;
+	ssd = container_of(pWork, struct ssd1308_t, dworker);
+
+	oled_flush();
+	if (ssd->del_wq == 1) {
+		pr_debug("receive killing message\n", __func__);
+		ssd->del_wq = 2;
+		return;
+	}
+	schedule_delayed_work(&ssd->dworker, ssd->flush_rate_ms * HZ / 1000);
 }
 #endif
 
@@ -145,7 +163,7 @@ static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned lon
 	{
 		struct ssd1308_t *ssd = (struct ssd1308_t*)filp->private_data;
 		pr_debug("New flush rate : %ldms\n", __func__, arg);
-		ssd->flush_rate = arg;
+		ssd->flush_rate_ms = arg;
 	}
 	break;
 		
@@ -207,16 +225,20 @@ static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 
 	/* work queue */
 	ssd->del_wq = 0;
-	ssd->flush_rate = FLUSH_RATE_DEFAULT;
-	INIT_WORK(&ssd->worker, worker_func);
+	ssd->flush_rate_ms = FLUSH_RATE_DEFAULT;
+
 
 #ifdef __SINGLE_WQ
 	ssd->wq = create_singlethread_workqueue("oled-flush");
+	INIT_WORK(&ssd->worker, worker_func);
 	queue_work(ssd->wq, &ssd->worker);
 #endif
 
 #ifdef __SHARED_QU
-	schedule_work(&ssd->worker);
+	INIT_DELAYED_WORK(&ssd->dworker, dworker_func);
+	schedule_delayed_work(&ssd->dworker, ssd->flush_rate_ms * HZ / 1000);
+	//INIT_WORK(&ssd->worker, worker_func);
+	//schedule_work(&ssd->worker);
 #endif
 
 #ifdef __TIMER
@@ -245,11 +267,23 @@ static int oled_ssd1308_close(struct inode *inode, struct file *filp)
 	del_timer_sync(&ssd->timer);
 #endif
 
-#ifdef __SINGLE_WQ
+
+#ifdef  __SINGLE_WQ
 	ssd->del_wq = 1;
-	msleep(ssd->flush_rate);
+	msleep(ssd->flush_rate_ms);
+
+	while (ssd->del_wq != 2)
+		msleep(ssd->flush_rate_ms);
+	
 	flush_workqueue(ssd->wq);
 	destroy_workqueue(ssd->wq);
+	
+#elif defined(__SHARED_QU)
+	ssd->del_wq = 1;
+	while (!cancel_delayed_work(&ssd->dworker)) {
+		msleep(ssd->flush_rate_ms);
+	}
+	pr_debug("delayed work has been canceled\n", __func__);
 #endif
 	
 	kfree(filp->private_data);
