@@ -53,3 +53,8 @@ done
 lsmod | grep cdata*
 #dmesg | tail -n 10
 ls -l $DEVICE_NODE --color
+
+SYS_CLASS_DIR=/sys/class/oled
+[ -d ${SYS_CLASS_DIR} ] && \
+    ls -l ${SYS_CLASS_DIR} --color auto
+

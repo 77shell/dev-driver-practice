@@ -55,7 +55,6 @@ struct ssd1308_t {
 	int timer_count;
 	int tasklet_count;
 	unsigned long flush_rate_ms;
-
 	struct oled_platform_data_t *platform_data;
 };
 
@@ -113,17 +112,66 @@ static void timer_func(unsigned long pSSD)
 static ssize_t oled_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	struct ssd1308_t *ssd;
-	u8 b;
 	
 	ssd = (struct ssd1308_t*)filp->private_data;
 	if (down_interruptible(&ssd->sem)) {
 		pr_debug("interrupted", __func__);
 		return 0;
 	}
-	
-	if (!get_user(b, buf))
+
+#if 0
+	u8 b;
+	if (!get_user(b, buf)) {
+		printk(KERN_INFO "%s: count %d\n", __func__, count);
+		printk(KERN_INFO "%s: buf %s\n", __func__, buf);
+		printk(KERN_INFO "%s: user data %d\n", __func__, b);
 		oled_paint(b);
+		oled_flush();
+	}
 	
+#else
+	/*
+	 * Transform to hexidecimal
+	 */
+	#define BUF_SIZE 64
+	
+	int ret;
+	long pixel;
+	char str[BUF_SIZE];
+	size_t i;
+	u8 b;
+
+	if (count > BUF_SIZE - 1) {
+		printk(KERN_WARNING "%s: user string is too long\n", __func__);
+		goto _WRITE_DONE;
+	}
+
+	/*
+	 * Accept 0 ~ 9, assemble chars to a string
+	 */
+	for(i=0; i<count; i++) {
+		get_user(b, buf + i);
+		printk(KERN_INFO "buf[%d] : %d\n", i, b);
+		if (b >= '0' && b <= '9') {
+			str[i] = b;
+			continue;
+		}
+		str[i] = '\0';
+		break;
+	}
+	
+	ret = kstrtol(str, 0, &pixel);
+	if (ret == 0) {
+		printk(KERN_INFO "%s: pixel %x\n", __func__, pixel);
+		oled_paint((u8)pixel);
+		oled_flush();
+	}
+	else
+		printk(KERN_WARNING "%s: kstrtol failed~\n");
+
+#endif
+	
+_WRITE_DONE:
 	up(&ssd->sem);
 	return count;
 }
@@ -308,6 +356,31 @@ static struct miscdevice oled_ssd1308_miscdev = {
 };
 
 
+static ssize_t reverse_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%ld\n", OLED.reverse_pixel);
+}
+
+static ssize_t reverse_store(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	long l;
+	int ret;
+
+	ret = kstrtol(buf, 0, &l);
+	if (ret != 0 || l > 1 || l < 0)
+		return 0;
+	
+	printk(KERN_INFO "%s: reverse %ld\n", __func__, l);
+	OLED.reverse_pixel = l;
+	oled_flush();
+	return 2;
+}
+
+static CLASS_ATTR_RW(reverse);
+//static CLASS_ATTR(reverse, 0555, reverse_show, reverse_store);
+static struct class *oled_class;
+
 static int oled_ssd1308_probe(struct spi_device *spi)
 {
 	int ret;
@@ -344,21 +417,32 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 	fb = OLED.fb_size;
 	for (page_nr = 1; fb > PAGE_SIZE; page_nr++, fb -= PAGE_SIZE);
 	OLED.fb = kzalloc(PAGE_SIZE * page_nr, GFP_KERNEL);
+	OLED.fb_reverse = kmalloc(PAGE_SIZE * page_nr, GFP_KERNEL);
 
 	oled_init_gpios(&OLED);
 	oled_init(&OLED);
 
 	pr_debug("before misc_register", __func__);
 	ret = misc_register(&oled_ssd1308_miscdev);
-	ret < 0
-		? printk(KERN_WARNING "%s: Register OLED miscdev failed~\n", __func__)
-		: printk(KERN_INFO "%s: Register OLED miscdev successful~\n", __func__);
+	if (ret >= 0) {
+		printk(KERN_INFO "%s: Register OLED miscdev successful!\n", __func__);
+		oled_class = class_create(THIS_MODULE, "oled");
+		if (IS_ERR(oled_class))
+			pr_warn("Unable to create OLED class; errno = %ld\n",
+				PTR_ERR(oled_class));
+		else
+			class_create_file(oled_class, &class_attr_reverse);
+	}
+	else
+		printk(KERN_WARNING "%s: Register OLED miscdev failed~\n", __func__);
 	
 	return ret;
 }
 
 static int oled_ssd1308_remove(struct spi_device *spi)
 {
+	class_remove_file(oled_class, &class_attr_reverse);
+	class_destroy(oled_class);
 	oled_off();
 	oled_free_gpios();
 	kfree(OLED.fb);

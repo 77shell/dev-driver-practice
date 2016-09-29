@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
 
 		case 'm':
 		{
-			int i;
+			int i, c;
 			const int thread_nr = 8;
 			struct Threadpara_t para[thread_nr];
 			unsigned char feed = (unsigned char)atoi(optarg);
@@ -287,7 +287,11 @@ int main(int argc, char *argv[])
 			for (i=0; i<thread_nr; i++)
 				pthread_create(&para[i].th_id, NULL, &_thread_test_mmap, (void*)&para[i]);
 			
-			getchar();
+			while ((c=getchar()) != 'a') {
+				printf("getchar() = %c\n", c);
+				usleep(_1s);
+			}
+			
 			for (i=0; i<thread_nr; i++)
 				pthread_mutex_unlock(&para[i].mutex);
 			

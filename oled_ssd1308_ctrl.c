@@ -220,18 +220,26 @@ void oled_flush()
 		page_nr,
 		pixel_x;
 	u8 *fb;
+	int i;
 
 	pr_debug("enter\n", __func__);
 	
 	page_nr = pOLED->page_nr;
 	pixel_x = pOLED->pixel_x;
-	fb = pOLED->fb;
+
+	if (pOLED->reverse_pixel) {
+		for (i=0; i<pOLED->fb_size; i++)
+			pOLED->fb_reverse[i] = ~pOLED->fb[i];
+		fb = pOLED->fb_reverse;
+	}
+	else
+		fb = pOLED->fb;
 
 	if (IS_ERR(fb)) {
 		printk(KERN_WARNING "%s: fb error\n", __func__);
 		return;
 	}
-	
+
 	for(page=0; page<page_nr; page++)
 	{
 		_set_page_addr(page);

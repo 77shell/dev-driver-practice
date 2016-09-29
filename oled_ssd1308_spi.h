@@ -34,6 +34,8 @@ struct oled_platform_data_t {
 	unsigned led2_pin;
 	unsigned int fb_size;
 	u8 *fb;
+	long reverse_pixel;
+	u8 *fb_reverse;
 };
 
 
