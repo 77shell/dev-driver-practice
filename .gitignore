@@ -3,7 +3,8 @@
 *.*~
 *.mod.c
 *.mod.o
-.cdata.ko.cmd
+*.cmd
+*.mod
 .cdata.mod.o.cmd
 .cdata.o.cmd
 .gitignore~

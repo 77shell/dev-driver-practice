@@ -20,12 +20,14 @@ static struct platform_device ldt_platform_device = {
 
 static int ldt_plat_dev_init(void)
 {
+        printk(KERN_INFO "%s", __func__);
 	return platform_device_register(&ldt_platform_device);
 }
 
 
 static void ldt_plat_dev_exit(void)
 {
+        printk(KERN_INFO "%s", __func__);
 	return platform_device_unregister(&ldt_platform_device);
 }
 

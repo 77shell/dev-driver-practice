@@ -6,24 +6,47 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include "cdata_ioctl.h"
+#include "../cdata_ioctl.h"
 
 
-int main(void)
+static void
+print_usage()
 {
-	int fd, i;
+        puts("test -d /dev/cdata-misc");
+}
+
+
+int main(int argc, char *argv[])
+{
+	int fd, i, opt;
 	pid_t child;
 	char str[20];
+        char *dev = "/dev/cdata-misc";
 	useconds_t us;
 	const useconds_t _100ms = 100000;
+
+        while( (opt = getopt(argc, argv, "d:")) != -1 )
+        {
+                switch(opt) {
+                case ':':
+                case '?':
+                        print_usage();
+                        exit(EXIT_SUCCESS);
+
+                case 'd':
+                        dev = optarg;
+                        printf("Device: %s\n", dev);
+                        break;
+                }
+        }
 
 	strcpy(str, "OH NO! ");
 
 	child = fork();
 	printf("Child: %d\n", child);
 
-	if ( (fd = open("/dev/cdata-misc", O_RDWR)) == -1) {
-		fprintf(stderr, "Open /dev/cdata-misc failed~\n");
+	if ( (fd = open(dev, O_RDWR)) == -1) {
+		fprintf(stderr, "Open %s failed~\n", dev);
 		exit(EXIT_FAILURE);
 	}
 

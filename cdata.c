@@ -41,11 +41,11 @@
 #define BUFSIZE     32
 #define TIMEOUT_VALUE (1*HZ)
 
-//#define __WORK_QUEUE
+// #define __WORK_QUEUE
 #define __TIMER
 
-//#define __MKNOD
-#define __PLAT_DRIVER
+// #define __MKNOD
+// #define __PLAT_DRIVER
 
 
 struct cdata_t {
@@ -57,13 +57,13 @@ struct cdata_t {
 };
 
 
-static void flush_data(struct work_struct *pWork)
+static void wq_flush_data(struct work_struct *pWork)
 {
 	struct cdata_t *cdata;
 	int i;
 
 	cdata = container_of(pWork, struct cdata_t, work);
-	printk("%s: %s", __func__, cdata->buf);
+	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
 	cdata->index = 0;
 	for (i=0; i<BUFSIZE; i++)
 		cdata->buf[i] = 0;
@@ -74,9 +74,12 @@ static void flush_data(struct work_struct *pWork)
 static void timer_handle(unsigned long data)
 {
 	struct cdata_t *cdata = (struct cdata_t*)data;
+        int i;
 
-	printk(KERN_ALERT "%s: %s", __func__, cdata->buf);
+	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
 	cdata->index = 0;
+	for (i=0; i<BUFSIZE; i++)
+		cdata->buf[i] = 0;
 	wake_up(&cdata->write_queue);
 }
 
@@ -99,16 +102,24 @@ static int cdata_open(struct inode *inode, struct file *filp)
 	}
 
 	init_waitqueue_head(&cdata->write_queue);
-	INIT_WORK(&cdata->work, flush_data);
+        
+#ifdef __WORK_QUEUE
+        
+        printk(KERN_INFO "%s: Apply work queue\n", __func__);
+	INIT_WORK(&cdata->work, wq_flush_data);
+
+#elif defined(__TIMER)
 
 	/* Init timer */
 	{
+                printk(KERN_ALERT "%s: Apply timer\n", __func__);
 		struct timer_list *pTimer;
 		pTimer = &cdata->timer;
 		init_timer(pTimer);
 		pTimer->function = timer_handle;
 		pTimer->data = (unsigned long)cdata;
 	}
+#endif
 	
 	printk(KERN_ALERT "%s: cdata in open: filp = %p\n", __func__, filp);
 	return 0;
@@ -177,7 +188,7 @@ repeat:
 		return 0;
 	
 	cdata->index += count;
-	printk(KERN_ALERT "%s: write %d-byte, buffer-index: %d\n", __func__, count, cdata->index);
+	printk(KERN_INFO "%s: write %d-byte, buffer-index: %d\n", __func__, count, cdata->index);
 	return count;
 }
 
@@ -216,16 +227,19 @@ static long cdata_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 static int cdata_close(struct inode *inode, struct file *filp)
 {
 	struct cdata_t *p;
+
+#ifdef __TIMER
 	int ret;
+#endif
 	
 	p = filp->private_data;
 
 #ifdef __TIMER
 	ret = del_timer_sync(&p->timer);
 	if (ret == 0)
-		printk(KERN_ALERT "%s: timer has already been removed.\n", __func__);
+		printk(KERN_INFO "%s: timer has already been removed.\n", __func__);
 	else if (ret > 0)
-		printk(KERN_ALERT "%s: timer has been removed before closing.\n", __func__);
+		printk(KERN_INFO "%s: timer has been removed before closing.\n", __func__);
 #endif
 	
 	printk(KERN_INFO "%s: Free cdata %s\n", __func__, p->buf);
@@ -275,6 +289,7 @@ static int cdata_plat_remove(struct platform_device *dev)
 }
 
 
+#ifdef __PLAT_DRIVER
 static struct platform_driver cdata_plat_driver = {
 	.driver = {
 		.name = "cdata",
@@ -283,17 +298,25 @@ static struct platform_driver cdata_plat_driver = {
 	.probe = cdata_plat_probe,
 	.remove = cdata_plat_remove
 };
+#endif
 
 
 int __init cdata_init_module(void)
 {
 #ifdef __MKNOD
+        
 	if (register_chrdev(CDATA_MAJOR, "cdata", &cdata_fops)) {
 		printk(KERN_ALERT "%s: cdata module: can't registered.\n", __func__);
 	}
 #endif
 
-#if 0
+
+#ifdef __PLAT_DRIVER
+        
+	platform_driver_register(&cdata_plat_driver);
+	printk(KERN_INFO "%s: register platform driver successful\n", __func__);
+#else
+        
 	int ret;
 	
 	ret = misc_register(&cdata_miscdev);
@@ -302,12 +325,7 @@ int __init cdata_init_module(void)
 	
 	printk(KERN_ALERT "%s: register MISC successful\n", __func__);
 #endif
-
-#ifdef __PLAT_DRIVER
-	platform_driver_register(&cdata_plat_driver);
-#endif
-
-	printk(KERN_ALERT "%s: register platform driver successful\n", __func__);
+        
 	return 0;
 }
 
@@ -319,14 +337,14 @@ void __exit cdata_cleanup_module(void)
 	printk(KERN_ALERT "cdata module: unregisterd.\n");
 #endif
 	
-#if 0
-	misc_deregister(&cdata_miscdev);
-	printk(KERN_ALERT "%s: cdata was unregisted.\n");
-#endif
-	
 #ifdef __PLAT_DRIVER
+        
 	platform_driver_unregister(&cdata_plat_driver);
 	printk(KERN_ALERT "%s: platform driver was unregisted.\n", __func__);
+#else
+        
+	misc_deregister(&cdata_miscdev);
+	printk(KERN_ALERT "%s: MISC cdata was unregisted.\n", __func__);
 #endif
 }
 

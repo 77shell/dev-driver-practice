@@ -1,6 +1,7 @@
 
 
-BINS := test-fb-ssd1308 \
+BINS := test \
+	test-fb-ssd1308 \
 	test-oled-ssd1308
 
 vpath %.c ./
