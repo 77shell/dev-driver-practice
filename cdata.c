@@ -44,8 +44,8 @@
 //#define __WORK_QUEUE
 #define __TIMER
 
-//#define __MKNOD
-#define __PLAT_DRIVER
+#define __MKNOD
+//#define __PLAT_DRIVER
 
 
 struct cdata_t {
@@ -289,7 +289,10 @@ int __init cdata_init_module(void)
 	if (register_chrdev(CDATA_MAJOR, "cdata", &cdata_fops)) {
 		printk(KERN_ALERT "%s: cdata module: can't registered.\n", __func__);
 	}
-#endif
+	else {
+	   printk(KERN_ALERT "%s: cdata module is registered (__MKNODE)\n", __func__);
+	}
+#endif /* __MKNODE */
 
 #if 0
 	int ret;
@@ -303,9 +306,9 @@ int __init cdata_init_module(void)
 
 #ifdef __PLAT_DRIVER
 	platform_driver_register(&cdata_plat_driver);
+	printk(KERN_ALERT "%s: register platform driver successful\n", __func__);
 #endif
 
-	printk(KERN_ALERT "%s: register platform driver successful\n", __func__);
 	return 0;
 }
 
