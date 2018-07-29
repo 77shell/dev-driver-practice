@@ -66,25 +66,3 @@ fi
 
 [ $# -eq 0 ] && \
     mesg_brown "\t./build.sh [ insmod | rmmod | clean ]\n"
-
-#
-# Making device node : /dev/cdata
-# Change node permission to 666
-#
-DEVICE_NODE=/dev/cdata-misc
-my_mknod()
-{
-    if ! [ -e /dev/cdata ]
-    then
-
-	sudo mknod $DEVICE_NODE c 121 0
-	echo -e "\033[32mMaking device node\033[0m"
-
-	if ! [ -e $DEVICE_NODE ]; then
-	    echo -e "\033[31mMake cdata failed~\033[0m"
-	    exit 1
-	fi
-	sudo chmod 666 $DEVICE_NODE
-	ls -l 
-    fi
-}

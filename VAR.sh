@@ -8,13 +8,13 @@ declare -a DEVICE_NODES=(
 )
 
 declare -a SYS_NODES=(
-#    /sys/devices/platform/cdata.0
+    /sys/devices/platform/cdata.0
 #    /sys/devices/platform/cdata-fb.0
 #    /sys/devices/platform/oled.0
 )
 
 declare -a KO=(
-#    cdata_plat_dev.ko
+    cdata_plat_dev.ko
     cdata.ko
 #    cdata_fb_plat_dev.ko
 #    cdata_fb_ssd1308.ko

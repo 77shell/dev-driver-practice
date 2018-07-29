@@ -1,4 +1,3 @@
-
 /**************************************************************
  *  Author        :  
  *                    ..  ..
@@ -41,11 +40,16 @@
 #define BUFSIZE     32
 #define TIMEOUT_VALUE (1*HZ)
 
-// #define __WORK_QUEUE
-#define __TIMER
+#define __WORK_QUEUE
+// #define __TIMER
 
 // #define __MKNOD
-// #define __PLAT_DRIVER
+#define __PLAT_DRIVER
+
+
+#if defined(__WORK_QUEUE) && defined(__TIMER)
+#error "Wrong configuration, either on __WORK_QUEUE or __TIMER"
+#endif
 
 
 struct cdata_t {
@@ -71,6 +75,7 @@ static void wq_flush_data(struct work_struct *pWork)
 }
 
 
+#ifdef __TIMER
 static void timer_handle(unsigned long data)
 {
 	struct cdata_t *cdata = (struct cdata_t*)data;
@@ -82,6 +87,7 @@ static void timer_handle(unsigned long data)
 		cdata->buf[i] = 0;
 	wake_up(&cdata->write_queue);
 }
+#endif /* __TIMER */
 
 
 static int cdata_open(struct inode *inode, struct file *filp)
@@ -259,13 +265,18 @@ static struct file_operations cdata_fops = {
 	release:        cdata_close
 };
 
+
+#if !defined(__MKNOD) || defined(__PLAT_DRIVER)
 static struct miscdevice cdata_miscdev = {
 	.minor = 199, /* Refer to miscdevice.h */
 	.name = "cdata-misc",
 	.fops = &cdata_fops
 	/* .nodename = "cdata" */
 };
+#endif
 
+
+#ifdef __PLAT_DRIVER
 static int cdata_plat_probe(struct platform_device *dev)
 {
 	int ret;
@@ -279,14 +290,17 @@ static int cdata_plat_probe(struct platform_device *dev)
 	printk(KERN_ALERT "%s: register MISC successful\n", __func__);
 	return 0;
 }
+#endif
 
 
+#ifdef __PLAT_DRIVER
 static int cdata_plat_remove(struct platform_device *dev)
 {
 	misc_deregister(&cdata_miscdev);
 	printk(KERN_ALERT "%s: cdata was unregisted.\n", __func__);
 	return 0;
 }
+#endif
 
 
 #ifdef __PLAT_DRIVER
@@ -308,13 +322,12 @@ int __init cdata_init_module(void)
 	if (register_chrdev(CDATA_MAJOR, "cdata", &cdata_fops)) {
 		printk(KERN_ALERT "%s: cdata module: can't registered.\n", __func__);
 	}
-#endif
 
-
-#ifdef __PLAT_DRIVER
+#elif defined( __PLAT_DRIVER)
         
 	platform_driver_register(&cdata_plat_driver);
 	printk(KERN_INFO "%s: register platform driver successful\n", __func__);
+
 #else
         
 	int ret;
@@ -335,9 +348,8 @@ void __exit cdata_cleanup_module(void)
 #ifdef __MKNOD
 	unregister_chrdev(CDATA_MAJOR, "cdata");
 	printk(KERN_ALERT "cdata module: unregisterd.\n");
-#endif
-	
-#ifdef __PLAT_DRIVER
+
+#elif defined(__PLAT_DRIVER)
         
 	platform_driver_unregister(&cdata_plat_driver);
 	printk(KERN_ALERT "%s: platform driver was unregisted.\n", __func__);

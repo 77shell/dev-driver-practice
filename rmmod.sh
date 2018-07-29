@@ -11,5 +11,3 @@ do
 	mesg_red "Uninstall driver: $i failed~"
     fi
 done
-
-
