@@ -51,3 +51,4 @@ do
 done
 
 
+ls /dev/cdata* -l --color=auto

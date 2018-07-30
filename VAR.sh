@@ -3,21 +3,28 @@
 
 declare -a DEVICE_NODES=(
     /dev/cdata-misc
-#    /dev/cdata-fb
+    /dev/cdata-fb
 #    /dev/oled-ssd1308
 )
 
 declare -a SYS_NODES=(
     /sys/devices/platform/cdata.0
-#    /sys/devices/platform/cdata-fb.0
+    /sys/devices/platform/cdata-fb.0
 #    /sys/devices/platform/oled.0
 )
 
+
+#
+# Register platform driver first
+# then register platform device
+#
 declare -a KO=(
-    cdata_plat_dev.ko
     cdata.ko
-#    cdata_fb_plat_dev.ko
+    cdata_plat_dev.ko
+
 #    cdata_fb_ssd1308.ko
+#    cdata_fb_plat_dev.ko
+
 #    oled_ssd1308_spi.ko
 #    oled_plat_dev.ko
 )

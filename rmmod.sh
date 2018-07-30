@@ -11,3 +11,5 @@ do
 	mesg_red "Uninstall driver: $i failed~"
     fi
 done
+
+ls -l /dev/cdata* --color=auto

@@ -8,6 +8,7 @@ static struct resource ldt_resource[] = {
 
 static void ldt_dev_release(struct device *dev)
 {
+        printk(KERN_INFO "%s", __func__);
 }
 
 static struct platform_device ldt_platform_device = {

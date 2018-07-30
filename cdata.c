@@ -269,7 +269,7 @@ static struct file_operations cdata_fops = {
 #if !defined(__MKNOD) || defined(__PLAT_DRIVER)
 static struct miscdevice cdata_miscdev = {
 	.minor = 199, /* Refer to miscdevice.h */
-	.name = "cdata-misc",
+	.name = "cdata.0",
 	.fops = &cdata_fops
 	/* .nodename = "cdata" */
 };

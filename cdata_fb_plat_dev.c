@@ -16,10 +16,12 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-static struct resource cdata_fb_resource[1];
+static struct resource cdata_fb_resource[] = {
+};
 
 static void cdata_fb_dev_release(struct device *dev)
 {
+        printk(KERN_INFO "%s", __func__);
 }
 
 static struct platform_device cdata_fb_plat_device = {
@@ -32,12 +34,14 @@ static struct platform_device cdata_fb_plat_device = {
 
 static int cdata_fb_plat_init(void)
 {
+        printk(KERN_INFO "%s", __func__);
 	return platform_device_register(&cdata_fb_plat_device);
 }
 
 
 static void cdata_fb_plat_exit(void)
 {
+        printk(KERN_INFO "%s", __func__);
 	return platform_device_unregister(&cdata_fb_plat_device);
 }
 
