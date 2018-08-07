@@ -31,3 +31,10 @@ default:
 
 clean:
 	rm -rf *.o *.ko .*cmd modules.* Module.* .tmp_versions *.mod.c .#* *~
+
+.PHONY: TAGS
+TAGS:
+	rm -rf TAGS
+	find . -regextype posix-egrep -iregex '.*\.(cpp|c|h)' | xargs etags -a
+	find . -iname Makefile.* | xargs etags -a
+

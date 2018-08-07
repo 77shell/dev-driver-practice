@@ -35,6 +35,7 @@ for i in ${DEVICE_NODES[@]}
 do
     if [ -e "$i" ]; then
 	mesg_green "\t$i"
+        sudo chmod 666 "$i"
     else
 	mesg_red "No $i exists~"
     fi

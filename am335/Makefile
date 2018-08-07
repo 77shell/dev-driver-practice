@@ -49,8 +49,6 @@ clean:
 TAGS:
 	rm -rf TAGS
 	find ../ -regextype posix-egrep -iregex '.*\.(cpp|c|h)' | xargs etags -a
-	find ~/gcc-linaro-arm-linux-gnueabihf-4.7-2013.03-20130313_linux/arm-linux-gnueabihf/libc/usr/include \
+	find  ~/triton/toolchain/gcc-linaro-4.9-2015.05-x86_64_arm-linux-gnueabihf/arm-linux-gnueabihf/include \
 		-type f | xargs etags -a
-	find ~/gcc-linaro-arm-linux-gnueabihf-4.7-2013.03-20130313_linux/arm-linux-gnueabihf/include/c++/4.7.3 \
-		-type f | xargs etags -a 
 	find . -iname 'Makefile.*' -type f | xargs etags -a

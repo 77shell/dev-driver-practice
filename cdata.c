@@ -40,17 +40,24 @@
 #define BUFSIZE     32
 #define TIMEOUT_VALUE (1*HZ)
 
-#define __WORK_QUEUE
+//#define __WORK_QUEUE
 // #define __TIMER
+#define __TASKLET
 
 // #define __MKNOD
 #define __PLAT_DRIVER
 
 
-#if defined(__WORK_QUEUE) && defined(__TIMER)
-#error "Wrong configuration, either on __WORK_QUEUE or __TIMER"
+#if defined(__WORK_QUEUE)
+#undef __TIMER
+#undef __TASKLET
+#elif defined(__TIMER)
+#undef __WORK_QUEUE
+#undef __TASKLET
+#elif defined(__TASKLET)
+#undef __WORK_QUEUE
+#undef __TIMER
 #endif
-
 
 struct cdata_t {
 	char *buf;
@@ -58,6 +65,7 @@ struct cdata_t {
 	wait_queue_head_t write_queue;
 	struct work_struct work;
 	struct timer_list timer;
+        struct tasklet_struct tasklet;
 };
 
 
@@ -66,11 +74,16 @@ static void wq_flush_data(struct work_struct *pWork)
 	struct cdata_t *cdata;
 	int i;
 
+        printk(KERN_INFO "%s: in_softirq(): %s", __func__, in_softirq() ? "YES" : "NO");
+        printk(KERN_INFO "%s: in_interrupt(): %s", __func__, in_interrupt() ? "YES" : "NO");
+        printk(KERN_INFO "%s: in_serving_softirq(): %s", __func__, in_serving_softirq() ? "YES" : "NO");
+        
 	cdata = container_of(pWork, struct cdata_t, work);
 	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
 	cdata->index = 0;
 	for (i=0; i<BUFSIZE; i++)
 		cdata->buf[i] = 0;
+
 	wake_up(&cdata->write_queue);
 }
 
@@ -81,6 +94,10 @@ static void timer_handle(unsigned long data)
 	struct cdata_t *cdata = (struct cdata_t*)data;
         int i;
 
+        printk(KERN_INFO "%s: in_softirq(): %s", __func__, in_softirq() ? "YES" : "NO");
+        printk(KERN_INFO "%s: in_interrupt(): %s", __func__, in_interrupt() ? "YES" : "NO");
+        printk(KERN_INFO "%s: in_serving_softirq(): %s", __func__, in_serving_softirq() ? "YES" : "NO");
+
 	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
 	cdata->index = 0;
 	for (i=0; i<BUFSIZE; i++)
@@ -88,6 +105,25 @@ static void timer_handle(unsigned long data)
 	wake_up(&cdata->write_queue);
 }
 #endif /* __TIMER */
+
+
+#ifdef __TASKLET
+static void tasklet_func(unsigned long data)
+{
+	struct cdata_t *cdata = (struct cdata_t*)data;
+        int i;
+
+        printk(KERN_INFO "%s: in_softirq(): %s", __func__, in_softirq() ? "YES" : "NO");
+        printk(KERN_INFO "%s: in_interrupt(): %s", __func__, in_interrupt() ? "YES" : "NO");
+        printk(KERN_INFO "%s: in_serving_softirq(): %s", __func__, in_serving_softirq() ? "YES" : "NO");
+
+	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
+	cdata->index = 0;
+	for (i=0; i<BUFSIZE; i++)
+		cdata->buf[i] = 0;
+	wake_up(&cdata->write_queue);
+}
+#endif /* __TASKLET */
 
 
 static int cdata_open(struct inode *inode, struct file *filp)
@@ -111,19 +147,26 @@ static int cdata_open(struct inode *inode, struct file *filp)
         
 #ifdef __WORK_QUEUE
         
-        printk(KERN_INFO "%s: Apply work queue\n", __func__);
+        printk(KERN_INFO "%s: BH, Apply work queue\n", __func__);
 	INIT_WORK(&cdata->work, wq_flush_data);
 
 #elif defined(__TIMER)
 
 	/* Init timer */
 	{
-                printk(KERN_ALERT "%s: Apply timer\n", __func__);
+                printk(KERN_ALERT "%s: BH, Apply timer\n", __func__);
 		struct timer_list *pTimer;
 		pTimer = &cdata->timer;
 		init_timer(pTimer);
 		pTimer->function = timer_handle;
 		pTimer->data = (unsigned long)cdata;
+	}
+
+#elif defined(__TASKLET)
+	/* Init tasklet */
+	{
+                printk(KERN_ALERT "%s: BH, Apply tasklet\n", __func__);
+                tasklet_init(&cdata->tasklet, tasklet_func, (unsigned long)cdata);
 	}
 #endif
 	
@@ -168,11 +211,20 @@ repeat:
 #ifdef __WORK_QUEUE
 		
 	        schedule_work(&cdata->work);
+                /* 
+                 * Schedule work to a specific CPU
+                 */
+                // schedule_work_on(1, &cdata->work);
 		
 #elif defined __TIMER
 		
 		cdata->timer.expires = jiffies + TIMEOUT_VALUE;
 		add_timer(&cdata->timer);
+
+#elif defined __TASKLET
+                
+                tasklet_schedule(&cdata->tasklet);
+                
 #endif
 		/* 
 		 * How does the event be checked? and how long?
