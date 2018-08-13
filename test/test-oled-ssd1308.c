@@ -1,18 +1,3 @@
-/*****************************************************************
- *  Copyright (c) 2016 Delta Products
- *
- *  THIS IS UNPUBLISHED PROPRIETARY TRADE SECRET SOURCE CODE OF
- *  Delta Products
- *
- *  The copyright above and this notice must be preserved in all copies of this
- *  source code.  The copyright notice above does not evidence any actual or
- *  intended publication of such source code.  This source code may not be 
- *  copied, disclosed, distributed, demonstrated or licensed except as expressly
- *  authorized by Delta Products.
- ****************************************************************/
-
-
-
 /**************************************************************
  *  Name          :  test-oled-ssd1308.c
  *  Author        :  
@@ -167,7 +152,7 @@ _thread_test_mmap(void *ptr)
 				map[j] = b;
 		}
 #endif
-
+		ioctl(th->fd, OLED_FLUSH_PANEL);
 		usleep(_1s);
 	}
 	

@@ -36,7 +36,7 @@
 
 #define FLUSH_RATE_DEFAULT 200 /* ms */
 //#define __SINGLE_WQ
-#define __SHARED_QU
+//#define __SHARED_QU
 //#define __TIMER
 
 #define PIXEL_X    128
@@ -212,6 +212,12 @@ static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned lon
 		struct ssd1308_t *ssd = (struct ssd1308_t*)filp->private_data;
 		pr_debug("New flush rate : %ldms\n", __func__, arg);
 		ssd->flush_rate_ms = arg;
+	}
+	break;
+
+	case OLED_FLUSH_PANEL:
+	{
+	   oled_flush();
 	}
 	break;
 		
