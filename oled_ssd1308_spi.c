@@ -109,7 +109,7 @@ static void timer_func(unsigned long pSSD)
 #endif
 
 
-static ssize_t oled_ssd1308_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
+static ssize_t oled_ssd1308_write_0(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	struct ssd1308_t *ssd;
 	
@@ -177,8 +177,95 @@ _WRITE_DONE:
 }
 
 
+static ssize_t oled_ssd1308_write_1(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
+{
+	struct ssd1308_t *ssd;
+	
+	ssd = (struct ssd1308_t*)filp->private_data;
+	if (down_interruptible(&ssd->sem)) {
+		pr_debug("interrupted", __func__);
+		return 0;
+	}
+
+#if 0
+	u8 b;
+	if (!get_user(b, buf)) {
+		printk(KERN_INFO "%s: count %d\n", __func__, count);
+		printk(KERN_INFO "%s: buf %s\n", __func__, buf);
+		printk(KERN_INFO "%s: user data %d\n", __func__, b);
+		oled_paint(b);
+		oled_flush();
+	}
+	
+#else
+	/*
+	 * Transform to hexidecimal
+	 */
+	#define BUF_SIZE 64
+	
+	int ret;
+	long pixel;
+	char str[BUF_SIZE];
+	size_t i;
+	u8 b;
+
+	if (count > BUF_SIZE - 1) {
+		printk(KERN_WARNING "%s: user string is too long\n", __func__);
+		goto _WRITE_DONE;
+	}
+
+	/*
+	 * Accept 0 ~ 9, assemble chars to a string
+	 */
+	for(i=0; i<count; i++) {
+		get_user(b, buf + i);
+		printk(KERN_INFO "buf[%d] : %d\n", i, b);
+		if (b >= '0' && b <= '9') {
+			str[i] = b;
+			continue;
+		}
+		str[i] = '\0';
+		break;
+	}
+	
+	ret = kstrtol(str, 0, &pixel);
+	if (ret == 0) {
+		printk(KERN_INFO "%s: pixel %x\n", __func__, pixel);
+		oled_paint((u8)pixel);
+		oled_flush();
+	}
+	else
+		printk(KERN_WARNING "%s: kstrtol failed~\n");
+
+#endif
+	
+_WRITE_DONE:
+	up(&ssd->sem);
+	return count;
+}
+
+
+ssize_t oled_ssd1308_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
+{
+        struct ssd1308_t *ssd;
+
+        ssd = (struct ssd1308_t*)filp->private_data;
+        
+        return count;
+}
+
+
 static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+        struct ssd1308_t *ssd;
+
+        ssd = (struct ssd1308_t*)filp->private_data;
+        
+        if(down_interruptible(&ssd->sem)) {
+		pr_debug("interrupted", __func__);
+		return 0;
+	}
+
 	switch(cmd) {
 	case OLED_CLEAR:
 		oled_paint((u8)0);
@@ -201,8 +288,10 @@ static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned lon
 		u8 feed;
 		u8 __user *ptr = (void __user *)arg;
 		
-		if (get_user(feed, ptr))
+		if (get_user(feed, ptr)) {
+                        up(&ssd->sem);
 			return -EFAULT;
+                }
 		oled_paint(feed);
 	}
 	break;
@@ -222,10 +311,12 @@ static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned lon
 	break;
 		
 	default:
+                up(&ssd->sem);
 		return -ENOTTY;
 	}
-	
-	pr_debug("cmd-%x\n", __func__, cmd);
+
+        up(&ssd->sem);
+	// pr_debug("cmd-%x\n", __func__, cmd);
 	return 0;
 }
 
@@ -286,16 +377,14 @@ static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 	ssd->wq = create_singlethread_workqueue("oled-flush");
 	INIT_WORK(&ssd->worker, worker_func);
 	queue_work(ssd->wq, &ssd->worker);
-#endif
 
-#ifdef __SHARED_QU
+#elif defined(__SHARED_QU)
 	INIT_DELAYED_WORK(&ssd->dworker, dworker_func);
 	schedule_delayed_work(&ssd->dworker, ssd->flush_rate_ms * HZ / 1000);
 	//INIT_WORK(&ssd->worker, worker_func);
 	//schedule_work(&ssd->worker);
-#endif
 
-#ifdef __TIMER
+#elif defined(__TIMER)
 	/* Init timer */
 	init_timer(&ssd->timer);
 	ssd->timer.function = timer_func;
@@ -317,10 +406,6 @@ static int oled_ssd1308_close(struct inode *inode, struct file *filp)
 	ssd = (struct ssd1308_t*)filp->private_data;
 	pr_debug("enter\n", __func__);
 
-#ifdef __TIMER
-	del_timer_sync(&ssd->timer);
-#endif
-
 
 #ifdef  __SINGLE_WQ
 	ssd->del_wq = 1;
@@ -338,6 +423,10 @@ static int oled_ssd1308_close(struct inode *inode, struct file *filp)
 		msleep(ssd->flush_rate_ms);
 	}
 	pr_debug("delayed work has been canceled\n", __func__);
+
+#elif defined(__TIMER)
+	del_timer_sync(&ssd->timer);
+        
 #endif
 	
 	kfree(filp->private_data);
@@ -347,7 +436,8 @@ static int oled_ssd1308_close(struct inode *inode, struct file *filp)
 
 static struct file_operations oled_fops = {
 	.owner = THIS_MODULE,
-	.write = oled_ssd1308_write,
+	.write = oled_ssd1308_write_1,
+        .read = oled_ssd1308_read,
 	.unlocked_ioctl = oled_ssd1308_ioctl,
 	.mmap = oled_ssd1308_mmap,
 	.open = oled_ssd1308_open,
@@ -387,12 +477,26 @@ static CLASS_ATTR_RW(reverse);
 //static CLASS_ATTR(reverse, 0555, reverse_show, reverse_store);
 static struct class *oled_class;
 
+
+static void _kzalloc_frame_buf(struct oled_platform_data_t *pOLED)
+{
+	unsigned int x, y;
+	ssize_t page_nr, fb;
+        
+	x = pOLED->pixel_x;
+	y = pOLED->pixel_y / pOLED->page_nr;
+	pOLED->fb_size = x * y;
+	fb = pOLED->fb_size;
+	for (page_nr = 1; fb > PAGE_SIZE; page_nr++, fb -= PAGE_SIZE);
+	pOLED->fb = kzalloc(PAGE_SIZE * page_nr, GFP_KERNEL);
+	pOLED->fb_reverse = kmalloc(PAGE_SIZE * page_nr, GFP_KERNEL);
+}
+
+
 static int oled_ssd1308_probe(struct spi_device *spi)
 {
 	int ret;
-	unsigned int x, y;
 	struct oled_platform_data_t *pData;
-	ssize_t page_nr, fb;
 
 	if (!spi) {
 		printk(KERN_WARNING "%s: spi is null. Device is not accessible\n",
@@ -416,15 +520,7 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 	pr_debug("spi_new_device(), 0x%lx successful~\n",
 	       __func__, (unsigned long)OLED.spi);
 
-	/* Allocate memory */
-	x = OLED.pixel_x;
-	y = OLED.pixel_y / OLED.page_nr;
-	OLED.fb_size = x * y;
-	fb = OLED.fb_size;
-	for (page_nr = 1; fb > PAGE_SIZE; page_nr++, fb -= PAGE_SIZE);
-	OLED.fb = kzalloc(PAGE_SIZE * page_nr, GFP_KERNEL);
-	OLED.fb_reverse = kmalloc(PAGE_SIZE * page_nr, GFP_KERNEL);
-
+	_kzalloc_frame_buf(&OLED);
 	oled_init_gpios(&OLED);
 	oled_init(&OLED);
 
@@ -433,11 +529,13 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 	if (ret >= 0) {
 		printk(KERN_INFO "%s: Register OLED miscdev successful!\n", __func__);
 		oled_class = class_create(THIS_MODULE, "oled");
-		if (IS_ERR(oled_class))
+		if (IS_ERR(oled_class)) {
 			pr_warn("Unable to create OLED class; errno = %ld\n",
 				PTR_ERR(oled_class));
-		else
+                }
+		else {
 			class_create_file(oled_class, &class_attr_reverse);
+                }
 	}
 	else
 		printk(KERN_WARNING "%s: Register OLED miscdev failed~\n", __func__);

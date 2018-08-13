@@ -65,8 +65,8 @@ int oled_init_gpios(struct oled_platform_data_t *oled)
 			       __func__, io->pin);
 	}
 
-	gpio_set_value(oled->led1_pin, 0);
-	gpio_set_value(oled->led2_pin, 0);
+	gpio_set_value(oled->led1_pin, 1);
+	gpio_set_value(oled->led2_pin, 1);
 	pr_debug("\n", __func__);
 	return 0;
 }

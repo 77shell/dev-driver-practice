@@ -40,9 +40,9 @@
 #define BUFSIZE     32
 #define TIMEOUT_VALUE (1*HZ)
 
-//#define __WORK_QUEUE
-// #define __TIMER
-#define __TASKLET
+#define __WORK_QUEUE
+//#define __TIMER
+//#define __TASKLET
 
 // #define __MKNOD
 #define __PLAT_DRIVER
@@ -66,6 +66,7 @@ struct cdata_t {
 	struct work_struct work;
 	struct timer_list timer;
         struct tasklet_struct tasklet;
+        spinlock_t spinlock;
 };
 
 
@@ -74,17 +75,24 @@ static void wq_flush_data(struct work_struct *pWork)
 	struct cdata_t *cdata;
 	int i;
 
+#if 0
         printk(KERN_INFO "%s: in_softirq(): %s", __func__, in_softirq() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_interrupt(): %s", __func__, in_interrupt() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_serving_softirq(): %s", __func__, in_serving_softirq() ? "YES" : "NO");
+#endif
         
 	cdata = container_of(pWork, struct cdata_t, work);
 	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
-	cdata->index = 0;
-	for (i=0; i<BUFSIZE; i++)
-		cdata->buf[i] = 0;
 
-	wake_up(&cdata->write_queue);
+        //spin_lock(&cdata->spinlock);
+        {
+                cdata->index = 0;
+                for (i=0; i<BUFSIZE; i++)
+                        cdata->buf[i] = 0;
+        }
+        //spin_unlock(&cdata->spinlock);
+
+        wake_up(&cdata->write_queue);
 }
 
 
@@ -94,15 +102,19 @@ static void timer_handle(unsigned long data)
 	struct cdata_t *cdata = (struct cdata_t*)data;
         int i;
 
+#if 0
         printk(KERN_INFO "%s: in_softirq(): %s", __func__, in_softirq() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_interrupt(): %s", __func__, in_interrupt() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_serving_softirq(): %s", __func__, in_serving_softirq() ? "YES" : "NO");
+#endif
 
 	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
 	cdata->index = 0;
 	for (i=0; i<BUFSIZE; i++)
 		cdata->buf[i] = 0;
-	wake_up(&cdata->write_queue);
+
+        if(cdata->index == 0)
+                wake_up(&cdata->write_queue);
 }
 #endif /* __TIMER */
 
@@ -112,10 +124,12 @@ static void tasklet_func(unsigned long data)
 {
 	struct cdata_t *cdata = (struct cdata_t*)data;
         int i;
-
+        
+#if 0
         printk(KERN_INFO "%s: in_softirq(): %s", __func__, in_softirq() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_interrupt(): %s", __func__, in_interrupt() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_serving_softirq(): %s", __func__, in_serving_softirq() ? "YES" : "NO");
+#endif
 
 	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
 	cdata->index = 0;
@@ -144,6 +158,8 @@ static int cdata_open(struct inode *inode, struct file *filp)
 	}
 
 	init_waitqueue_head(&cdata->write_queue);
+        spin_lock_init(&cdata->spinlock);
+
         
 #ifdef __WORK_QUEUE
         
@@ -208,6 +224,10 @@ repeat:
 		interrupt_sleep_on(&cdata->write_queue);
 #endif
 
+	        //schedule_work(&cdata->work);
+                schedule_work_on(0, &cdata->work);
+                
+                
 #ifdef __WORK_QUEUE
 		
 	        schedule_work(&cdata->work);

@@ -4,12 +4,13 @@
 declare -a DEVICE_NODES=(
     /dev/cdata-misc
     /dev/cdata-fb
+    /dev/cdata.0
 #    /dev/oled-ssd1308
 )
 
 declare -a SYS_NODES=(
     /sys/devices/platform/cdata.0
-    /sys/devices/platform/cdata-fb.0
+#    /sys/devices/platform/cdata-fb.0
 #    /sys/devices/platform/oled.0
 )
 

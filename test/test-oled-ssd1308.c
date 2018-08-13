@@ -152,7 +152,10 @@ _thread_test_mmap(void *ptr)
 				map[j] = b;
 		}
 #endif
-		ioctl(th->fd, OLED_FLUSH_PANEL);
+#define LAST_ROW_INDEX   7
+                if(th->row == LAST_ROW_INDEX)
+                        ioctl(th->fd, OLED_FLUSH_PANEL);
+                
 		usleep(_1s);
 	}
 	
