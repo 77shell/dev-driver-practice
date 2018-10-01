@@ -28,9 +28,10 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <pthread.h>
-#include "oled_ssd1308_ioctl.h"
+#include "../oled_ssd1308_ioctl.h"
 
 
+#define __SYS_CALL_FSYNC
 sig_atomic_t child_exit_status;
 
 
@@ -152,9 +153,15 @@ _thread_test_mmap(void *ptr)
 				map[j] = b;
 		}
 #endif
+
 #define LAST_ROW_INDEX   7
+#ifdef __SYS_CALL_FSYNC
+                if(th->row == LAST_ROW_INDEX)
+                        fsync(th->fd);
+#else
                 if(th->row == LAST_ROW_INDEX)
                         ioctl(th->fd, OLED_FLUSH_PANEL);
+#endif
                 
 		usleep(_1s);
 	}

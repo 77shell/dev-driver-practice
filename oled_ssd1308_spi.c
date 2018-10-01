@@ -109,10 +109,17 @@ static void timer_func(unsigned long pSSD)
 #endif
 
 
+#if 0
 static ssize_t oled_ssd1308_write_0(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
+	#define BUF_SIZE 64
 	struct ssd1308_t *ssd;
-	
+	int ret;
+	long pixel;
+	char str[BUF_SIZE];
+	size_t i;
+	u8 b;
+
 	ssd = (struct ssd1308_t*)filp->private_data;
 	if (down_interruptible(&ssd->sem)) {
 		pr_debug("interrupted", __func__);
@@ -133,14 +140,6 @@ static ssize_t oled_ssd1308_write_0(struct file *filp, const char __user *buf, s
 	/*
 	 * Transform to hexidecimal
 	 */
-	#define BUF_SIZE 64
-	
-	int ret;
-	long pixel;
-	char str[BUF_SIZE];
-	size_t i;
-	u8 b;
-
 	if (count > BUF_SIZE - 1) {
 		printk(KERN_WARNING "%s: user string is too long\n", __func__);
 		goto _WRITE_DONE;
@@ -162,12 +161,12 @@ static ssize_t oled_ssd1308_write_0(struct file *filp, const char __user *buf, s
 	
 	ret = kstrtol(str, 0, &pixel);
 	if (ret == 0) {
-		printk(KERN_INFO "%s: pixel %x\n", __func__, pixel);
+		printk(KERN_INFO "%s: pixel %lx\n", __func__, pixel);
 		oled_paint((u8)pixel);
 		oled_flush();
 	}
 	else
-		printk(KERN_WARNING "%s: kstrtol failed~\n");
+		printk(KERN_WARNING "%s: kstrtol failed~\n", __func__);
 
 #endif
 	
@@ -175,11 +174,18 @@ _WRITE_DONE:
 	up(&ssd->sem);
 	return count;
 }
+#endif
 
 
 static ssize_t oled_ssd1308_write_1(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
+	#define BUF_SIZE 64
 	struct ssd1308_t *ssd;
+	int ret;
+	long pixel;
+	char str[BUF_SIZE];
+	size_t i;
+	u8 b;
 	
 	ssd = (struct ssd1308_t*)filp->private_data;
 	if (down_interruptible(&ssd->sem)) {
@@ -201,14 +207,6 @@ static ssize_t oled_ssd1308_write_1(struct file *filp, const char __user *buf, s
 	/*
 	 * Transform to hexidecimal
 	 */
-	#define BUF_SIZE 64
-	
-	int ret;
-	long pixel;
-	char str[BUF_SIZE];
-	size_t i;
-	u8 b;
-
 	if (count > BUF_SIZE - 1) {
 		printk(KERN_WARNING "%s: user string is too long\n", __func__);
 		goto _WRITE_DONE;
@@ -230,12 +228,12 @@ static ssize_t oled_ssd1308_write_1(struct file *filp, const char __user *buf, s
 	
 	ret = kstrtol(str, 0, &pixel);
 	if (ret == 0) {
-		printk(KERN_INFO "%s: pixel %x\n", __func__, pixel);
+		printk(KERN_INFO "%s: pixel %lx\n", __func__, pixel);
 		oled_paint((u8)pixel);
 		oled_flush();
 	}
 	else
-		printk(KERN_WARNING "%s: kstrtol failed~\n");
+		printk(KERN_WARNING "%s: kstrtol failed~\n", __func__);
 
 #endif
 	
@@ -331,9 +329,9 @@ static int oled_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 	pr_debug("enter\n", __func__);
 	pr_debug("oled->fb: %p\n", __func__, oled->fb);
 	pr_debug("oled->fb_size: %d\n", __func__, oled->fb_size);
-	pr_debug("virt_to_phys((void*)oled->fb) : %p >> PAGE_SHIFT : %p\n",
+	pr_debug("virt_to_phys((void*)oled->fb) : %d >> PAGE_SHIFT : %d\n",
 		 __func__,
-		 phys,
+                 phys,
 		 phys >> PAGE_SHIFT);
 	
 	pr_debug("vma->vm_end: %lx\n", __func__, vma->vm_end);
@@ -399,6 +397,22 @@ static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+
+static int oled_ssd1308_fsync(struct file *filp, loff_t a, loff_t b, int datasync)
+{
+        struct ssd1308_t *ssd;
+
+        ssd = (struct ssd1308_t*)filp->private_data;
+        if(down_interruptible(&ssd->sem)) {
+                pr_debug("interrupted", __func__);
+		return -1;
+	}
+        oled_flush();
+        up(&ssd->sem);
+        return 0;
+}
+
+
 static int oled_ssd1308_close(struct inode *inode, struct file *filp)
 {
 	struct ssd1308_t *ssd;
@@ -441,7 +455,8 @@ static struct file_operations oled_fops = {
 	.unlocked_ioctl = oled_ssd1308_ioctl,
 	.mmap = oled_ssd1308_mmap,
 	.open = oled_ssd1308_open,
-	.release = oled_ssd1308_close
+	.release = oled_ssd1308_close,
+        .fsync = oled_ssd1308_fsync
 };
 
 
@@ -531,10 +546,12 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 		oled_class = class_create(THIS_MODULE, "oled");
 		if (IS_ERR(oled_class)) {
 			pr_warn("Unable to create OLED class; errno = %ld\n",
-				PTR_ERR(oled_class));
+				__func__, PTR_ERR(oled_class));
                 }
 		else {
-			class_create_file(oled_class, &class_attr_reverse);
+                        int error = class_create_file(oled_class, &class_attr_reverse);
+                        if(error)
+                                printk(KERN_WARNING "%s: error!\n", __func__);
                 }
 	}
 	else

@@ -44,7 +44,7 @@ void oled_free_gpios(void);
 int oled_init_gpios(struct oled_platform_data_t *oled)
 {	
 	ssize_t i;
-	int err;
+	int err ;
 	struct gpio_t gpios[] = {
 		{ oled->reset_pin, GPIOF_DIR_OUT, "OLED-Reset-Pin" },
 		{ oled->ad_pin,    GPIOF_DIR_OUT, "OLED-AD-Pin"    },

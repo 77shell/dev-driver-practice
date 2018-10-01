@@ -40,9 +40,9 @@
 #define BUFSIZE     32
 #define TIMEOUT_VALUE (1*HZ)
 
-#define __WORK_QUEUE
+//#define __WORK_QUEUE
 //#define __TIMER
-//#define __TASKLET
+#define __TASKLET
 
 // #define __MKNOD
 #define __PLAT_DRIVER
@@ -70,12 +70,13 @@ struct cdata_t {
 };
 
 
+#ifdef __WORK_QUEUE
 static void wq_flush_data(struct work_struct *pWork)
 {
 	struct cdata_t *cdata;
 	int i;
 
-#if 0
+#if 1
         printk(KERN_INFO "%s: in_softirq(): %s", __func__, in_softirq() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_interrupt(): %s", __func__, in_interrupt() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_serving_softirq(): %s", __func__, in_serving_softirq() ? "YES" : "NO");
@@ -94,6 +95,7 @@ static void wq_flush_data(struct work_struct *pWork)
 
         wake_up(&cdata->write_queue);
 }
+#endif
 
 
 #ifdef __TIMER
@@ -102,13 +104,14 @@ static void timer_handle(unsigned long data)
 	struct cdata_t *cdata = (struct cdata_t*)data;
         int i;
 
-#if 0
+#if 1
         printk(KERN_INFO "%s: in_softirq(): %s", __func__, in_softirq() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_interrupt(): %s", __func__, in_interrupt() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_serving_softirq(): %s", __func__, in_serving_softirq() ? "YES" : "NO");
 #endif
 
-	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
+	//printk(KERN_INFO "%s: %s", __func__, cdata->buf);
+        printk(KERN_INFO "%s: cdata->index: %d", __func__, cdata->index);
 	cdata->index = 0;
 	for (i=0; i<BUFSIZE; i++)
 		cdata->buf[i] = 0;
@@ -129,9 +132,15 @@ static void tasklet_func(unsigned long data)
         printk(KERN_INFO "%s: in_softirq(): %s", __func__, in_softirq() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_interrupt(): %s", __func__, in_interrupt() ? "YES" : "NO");
         printk(KERN_INFO "%s: in_serving_softirq(): %s", __func__, in_serving_softirq() ? "YES" : "NO");
+#else
+        printk(KERN_INFO "%s: in_softirq(): %s\tin_interrupt(): %s\tin_serving_softirq(): %s",
+               __func__,
+               in_softirq() ? "YES" : "NO",
+               in_interrupt() ? "YES" : "NO",
+               in_serving_softirq() ? "YES" : "NO");
 #endif
 
-	printk(KERN_INFO "%s: %s", __func__, cdata->buf);
+	printk(KERN_INFO "%s: consuming data, %s", __func__, cdata->buf);
 	cdata->index = 0;
 	for (i=0; i<BUFSIZE; i++)
 		cdata->buf[i] = 0;
@@ -225,7 +234,7 @@ repeat:
 #endif
 
 	        //schedule_work(&cdata->work);
-                schedule_work_on(0, &cdata->work);
+                //schedule_work_on(0, &cdata->work);
                 
                 
 #ifdef __WORK_QUEUE
@@ -252,6 +261,10 @@ repeat:
 		 * It was checked after calling wake_up().
 		 *
 		 */
+                printk(KERN_INFO "PID:%i %s: wait_event_interruptible(), cdata->index: %d\n",
+                       current->pid,
+                       __func__,
+                       cdata->index);
 		wait_event_interruptible(cdata->write_queue, cdata->index + count < BUFSIZE);
 
 		goto repeat;
@@ -266,7 +279,11 @@ repeat:
 		return 0;
 	
 	cdata->index += count;
-	printk(KERN_INFO "%s: write %d-byte, buffer-index: %d\n", __func__, count, cdata->index);
+	printk(KERN_INFO "PID:%i %s: write %d-byte, buffer-index: %d\n",
+               current->pid,
+               __func__,
+               count,
+               cdata->index);
 	return count;
 }
 

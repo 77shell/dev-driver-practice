@@ -20,13 +20,19 @@ else
 	OPTIMIZE=-O0
 endif
 
-CFLAGS += -iquote../../ -lpthread
+CFLAGS += -pthread -iquote../../ -lpthread
+CXXFLAGS += -pthread -iquote../../ -lpthread
 
 vpath %.c ../
+vpath %.cpp ../
 
 BINS := test \
 	test-fb-ssd1308 \
-	test-oled-ssd1308
+	test-oled-ssd1308 \
+	test-oled-ssd1308-r1
+
+test-oled-ssd1308-r1: test-oled-ssd1308-r1.o input-event.o
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
 .PHONY: all
 all: $(BINS)

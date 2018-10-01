@@ -25,6 +25,7 @@ int main(int argc, char *argv[])
 	useconds_t us;
 	const useconds_t _100ms = 100000;
 	const useconds_t _10ms = 10000;
+        const useconds_t _1ms = 1000;
 
         while( (opt = getopt(argc, argv, "d:")) != -1 )
         {
@@ -41,7 +42,7 @@ int main(int argc, char *argv[])
                 }
         }
 
-	strcpy(str, "111111");
+	strcpy(str, "______");
 
 	if ( (fd = open(dev, O_RDWR)) == -1) {
 		fprintf(stderr, "Open %s failed~\n", dev);
@@ -52,15 +53,16 @@ int main(int argc, char *argv[])
 	printf("Child: %d\n", child);
 
         if(child)
-                strcpy(str, "222222");
+                strcpy(str, "******");
         
 	//ioctl(fd, IOCTL_SYNC, 1);
 
 	for(i=0; i<100; i++) {
 		write(fd, (void *)str, strlen(str));
-		usleep(_10ms);
+		//usleep(_100ms);
 	}
-	
+
+        printf("complete %d\n", child);
 	//ioctl(fd, IOCTL_SYNC, 3);
 	//ioctl(fd, IOCTL_EMPTY, 2);
 	close(fd);

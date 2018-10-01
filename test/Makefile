@@ -1,5 +1,7 @@
 
 
+CFLAGS += -pthread -lpthread
+
 BINS := test \
 	test-fb-ssd1308 \
 	test-oled-ssd1308

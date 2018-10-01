@@ -1,4 +1,4 @@
-#!/bin//bash
+#!/bin/bash
 
 
 declare -a DEVICE_NODES=(
