@@ -20,8 +20,8 @@ else
 	OPTIMIZE=-O0
 endif
 
-CFLAGS += -pthread -iquote../../ -lpthread
-CXXFLAGS += -pthread -iquote../../ -lpthread
+CFLAGS += -pthread -iquote../../
+CPPFLAGS += -pthread -iquote../../
 
 vpath %.c ../
 vpath %.cpp ../
@@ -29,13 +29,14 @@ vpath %.cpp ../
 BINS := test \
 	test-fb-ssd1308 \
 	test-oled-ssd1308 \
-	test-oled-ssd1308-r1
-
-test-oled-ssd1308-r1: test-oled-ssd1308-r1.o input-event.o
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	test-oled-ssd1308-r1 \
+	rolling-oled-ssd1308
 
 .PHONY: all
 all: $(BINS)
+
+test-oled-ssd1308-r1: test-oled-ssd1308-r1.o input-event.o
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
 
 clean:
@@ -46,8 +47,8 @@ clean:
 TAGS:
 	rm -rf TAGS
 	find ../ -regextype posix-egrep -iregex '.*\.(cpp|c|h)' | xargs etags -a
-	find ~/gcc-linaro-arm-linux-gnueabihf-4.7-2013.03-20130313_linux/arm-linux-gnueabihf/libc/usr/include \
+	find ~/triton/toolchain/gcc-linaro-5.3.1-2016.05-x86_64_arm-linux-gnueabihf/arm-linux-gnueabihf/libc/usr/include \
 		-type f | xargs etags -a
-	find ~/gcc-linaro-arm-linux-gnueabihf-4.7-2013.03-20130313_linux/arm-linux-gnueabihf/include/c++/4.7.3 \
+	find ~/triton/toolchain/gcc-linaro-5.3.1-2016.05-x86_64_arm-linux-gnueabihf/arm-linux-gnueabihf/include/c++/5.3.1 \
 		-type f | xargs etags -a 
 	find . -iname 'Makefile.*' -type f | xargs etags -a

@@ -2,7 +2,8 @@
 CORTEX_FLAGS := -march=armv7-a -marm -mthumb-interwork -mfloat-abi=hard -mfpu=neon -mtune=cortex-a8
 
 KDIR 	     := ~/triton/board-support/ti-linux-kernel-4.1.y
-SDK          := ${HOME}/triton/toolchain/gcc-linaro-4.9-2015.05-x86_64_arm-linux-gnueabihf/arm-linux-gnueabihf
+#SDK         := ${HOME}/triton/toolchain/gcc-linaro-4.9-2015.05-x86_64_arm-linux-gnueabihf/arm-linux-gnueabihf
+SDK          :=~/triton/toolchain/gcc-linaro-5.3.1-2016.05-x86_64_arm-linux-gnueabihf/arm-linux-gnueabihf
 
 CFLAGS 	     := $(CORTEX_FLAGS)
 LIBSPATH     := 
