@@ -39,7 +39,9 @@ static void _set_lower_addr(u8 low);
 static void _set_high_addr(u8 high);
 static void _raise_reset(void);
 static void _release_reset(void);
+static u8 rotate(u8 x);
 
+        
 static struct oled_platform_data_t *pOLED;
 
 
@@ -213,27 +215,66 @@ void oled_reset()
 }
 
 
+
+
 void oled_flush()
 {
 	ssize_t
 		page,
 		page_nr,
-		pixel_x;
-	u8 *fb;
-	int i;
+		pixel_x,
+                fb_len,
+                i, j;
+	u8 *fb, *src_pg, *des_pg;
 
 	pr_debug("enter\n", __func__);
 	
 	page_nr = pOLED->page_nr;
 	pixel_x = pOLED->pixel_x;
+        fb_len  = pOLED->fb_size;
 
 	if (pOLED->reverse_pixel) {
-		for (i=0; i<pOLED->fb_size; i++)
+		for (i=0; i<fb_len; i++)
 			pOLED->fb_reverse[i] = ~pOLED->fb[i];
 		fb = pOLED->fb_reverse;
 	}
-	else
+	else {
 		fb = pOLED->fb;
+        }
+
+        if (pOLED->rotate == 180) {
+                u8 pg_buf[pixel_x];
+                
+                /*
+                 * Upside down
+                 */
+                for(page=0; page<page_nr/2; page++) {
+                        src_pg = fb + page * pixel_x;
+                        des_pg = pOLED->fb_rotate + (page_nr - page - 1) * pixel_x;
+                        for(j=0; j<pixel_x; j++)
+                                 pg_buf[j] = rotate(src_pg[j]);
+                        /*
+                         * Rotate horizontally
+                         */
+                        j = pixel_x - 1;
+                        for(i=0; i<pixel_x; i++, j--)
+                                des_pg[i] = pg_buf[j];
+
+                }
+                for(; page<page_nr; page++) {
+                        src_pg = fb + page * pixel_x;
+                        des_pg = pOLED->fb_rotate + (page_nr - page - 1) * pixel_x;
+                        for(j=0; j<pixel_x; j++)
+                                pg_buf[j] = rotate(src_pg[j]);
+                        /*
+                         * Rotate horizontally
+                         */
+                        j = pixel_x - 1;
+                        for(i=0; i<pixel_x; i++, j--)
+                                des_pg[i] = pg_buf[j];
+                }
+                fb = pOLED->fb_rotate;
+        }
 
 	if (IS_ERR(fb)) {
 		printk(KERN_WARNING "%s: fb error\n", __func__);
@@ -294,4 +335,13 @@ void oled_init(struct oled_platform_data_t *oled)
 	sema_init(&pOLED->sem, 1);
 	oled_reset();
 	pr_debug("exit\n", __func__);
+}
+
+
+static u8 rotate(u8 x)
+{
+        x = (x>>4)|(x<<4);
+        x = ((x & 0xcc) >> 2) | ((x & 0x33)<<2);
+        x = ((x & 0xaa) >> 1) | ((x & 0x55)<<1);
+        return x;
 }

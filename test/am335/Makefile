@@ -36,8 +36,7 @@ BINS := test \
 all: $(BINS)
 
 test-oled-ssd1308-r1: test-oled-ssd1308-r1.o input-event.o
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
+	$(CXX) $(CPPFLAGS) $^ -o $@
 
 clean:
 	rm -rf $(BINS) .#* *~

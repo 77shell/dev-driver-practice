@@ -223,6 +223,8 @@ int main(int argc, char *argv[])
 
         unsigned char feed = 0xaa;
         ioctl(fd, OLED_FEED, &feed);
+        fsync(fd);
+        usleep(_1s);
         
 	{
                 int i, c;

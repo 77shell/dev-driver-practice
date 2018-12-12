@@ -15,7 +15,12 @@ struct oled_platform_data_t oled_platform_data = {
 	.ad_pin = 55,
 	.led1_pin = 48,
 	.led2_pin = 58,
-	.fb = NULL
+        .reverse_pixel = 0,
+        .rotate = 0,
+        .fb_size = 0,
+	.fb = NULL,
+        .fb_reverse = NULL,
+        .fb_rotate = NULL
 };
 
 struct spi_board_info oled_board_info[] = {

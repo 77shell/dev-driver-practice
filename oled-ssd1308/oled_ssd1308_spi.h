@@ -32,10 +32,12 @@ struct oled_platform_data_t {
 	unsigned ad_pin;
 	unsigned led1_pin;
 	unsigned led2_pin;
+	long reverse_pixel;
+        unsigned int rotate;
 	unsigned int fb_size;
 	u8 *fb;
-	long reverse_pixel;
 	u8 *fb_reverse;
+        u8 *fb_rotate;
 };
 
 
@@ -45,6 +47,8 @@ void oled_off(void);
 void oled_paint(u8 byte);
 void oled_flush(void);
 void oled_init(struct oled_platform_data_t *);
+void oled_ssd1308_create_class_attr(void);
+void oled_ssd1308_destroy_class_attr(void);
 
 
 #endif /* __OLED_SSD1308_SPI_H */

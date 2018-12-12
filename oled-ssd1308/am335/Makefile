@@ -23,11 +23,13 @@ cdata_fb_plat_dev-y	:= ../cdata_fb_plat_dev.o
 oled_plat_dev-y		:= ../oled_plat_dev.o
 oled_ssd1308-y		:= ../oled_ssd1308_spi.o \
 				../oled_ssd1308_ctrl.o \
-				../oled_ssd1308_gpio.o
+				../oled_ssd1308_gpio.o \
+				../oled_ssd1308_attr.o
 
-CFLAGS_oled_ssd1308_spi.o  += -DDEBUG
+# turn on pr_debug()
+#CFLAGS_oled_ssd1308_spi.o  += -DDEBUG
 #CFLAGS_oled_ssd1308_ctrl.o += -DDEBUG
-CFLAGS_oled_ssd1308_gpio.o += -DDEBUG
+#CFLAGS_oled_ssd1308_gpio.o += -DDEBUG
 
 PWD 	:= $(shell pwd)
 
