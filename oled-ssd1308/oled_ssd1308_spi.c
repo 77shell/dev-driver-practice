@@ -11,8 +11,6 @@
  *
  *  History:     ysh  7-07-2016          Create
  *************************************************************/
-
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -56,11 +54,9 @@ struct ssd1308_t {
 	struct oled_platform_data_t *platform_data;
 };
 
-
 struct oled_platform_data_t OLED;
 extern int oled_init_gpios(struct oled_platform_data_t *oled);
 extern void oled_free_gpios(void);
-
 
 #ifdef __SINGLE_WQ
 static void worker_func(struct work_struct *pWork)
@@ -172,16 +168,12 @@ _WRITE_DONE:
 	return count;
 }
 
-
 ssize_t oled_ssd1308_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
 {
         struct ssd1308_t *ssd;
-
         ssd = (struct ssd1308_t*)filp->private_data;
-        
         return count;
 }
-
 
 static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -248,7 +240,6 @@ static long oled_ssd1308_ioctl(struct file *filp, unsigned int cmd, unsigned lon
 	return 0;
 }
 
-
 static int oled_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct ssd1308_t *ssd = (struct ssd1308_t*)filp->private_data;
@@ -281,7 +272,6 @@ static int oled_ssd1308_mmap(struct file *filp, struct vm_area_struct *vma)
 	pr_debug("exit\n", __func__);
 	return 0;
 }
-
 
 static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 {
@@ -327,7 +317,6 @@ static int oled_ssd1308_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-
 static int oled_ssd1308_fsync(struct file *filp, loff_t a, loff_t b, int datasync)
 {
         struct ssd1308_t *ssd;
@@ -341,7 +330,6 @@ static int oled_ssd1308_fsync(struct file *filp, loff_t a, loff_t b, int datasyn
         up(&ssd->sem);
         return 0;
 }
-
 
 static int oled_ssd1308_close(struct inode *inode, struct file *filp)
 {
@@ -389,15 +377,11 @@ static struct file_operations oled_fops = {
         .fsync = oled_ssd1308_fsync
 };
 
-
 static struct miscdevice oled_ssd1308_miscdev = {
 	.minor = 197, /* Refer to miscdev.h */
 	.name = "oled-ssd1308",
 	.fops = &oled_fops
 };
-
-
-
 
 static void _kzalloc_frame_buf(struct oled_platform_data_t *pOLED)
 {
@@ -413,7 +397,6 @@ static void _kzalloc_frame_buf(struct oled_platform_data_t *pOLED)
 	pOLED->fb_reverse = kmalloc(PAGE_SIZE * page_nr, GFP_KERNEL);
         pOLED->fb_rotate = kmalloc(PAGE_SIZE * page_nr, GFP_KERNEL);
 }
-
 
 static int oled_ssd1308_probe(struct spi_device *spi)
 {
@@ -452,8 +435,9 @@ static int oled_ssd1308_probe(struct spi_device *spi)
 		printk(KERN_INFO "%s: Register OLED miscdev successful!\n", __func__);
                 oled_ssd1308_create_class_attr();
 	}
-	else
+	else {
 		printk(KERN_WARNING "%s: Register OLED miscdev failed~\n", __func__);
+	}
 	
 	return ret;
 }
@@ -486,7 +470,6 @@ static struct spi_driver oled_ssd1308_driver = {
 	.probe = oled_ssd1308_probe,
 	.remove = oled_ssd1308_remove
 };
-
 
 module_spi_driver(oled_ssd1308_driver);
 MODULE_LICENSE("GPL");

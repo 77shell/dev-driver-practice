@@ -3,34 +3,26 @@
 # Max <max.yang@deltaww.com>
 #
 # To build kernel module
-# 	> cdata.ko
-#	> cdata_plat_dev.ko
-#	> cdata_fb.ko
-#	> cdata_fb_plat_dev.ko
 #
 
 KDIR := /lib/modules/$(shell uname -r)/build
 CFLAGS_user = -std=gnu99 -Wall -Wextra -Werror
 
-obj-m := cdata.o \
-	cdata_plat_dev.o \
-	cdata_fb_ssd1308.o \
-	cdata_fb_plat_dev.o \
-	oled_plat_dev.o \
+obj-m := oled_plat_dev.o \
 	oled_ssd1308.o
 
 oled_ssd1308-objs := oled_ssd1308_spi.o \
-			oled_ssd1308_ctrl.o \
-			oled_ssd1308_gpio.o
+		oled_ssd1308_ctrl.o \
+		oled_ssd1308_gpio.o
 
-PWD := $(shell pwd)
-ccflag-y += "-iquote./"
+# ccflags-y := -include$(PWD)
 
 all:
-	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
+.PHONY: clean
 clean:
-	rm -rf *.o *.ko .*cmd modules.* Module.* .tmp_versions *.mod.c .#* *~
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
 
 .PHONY: TAGS
 TAGS:

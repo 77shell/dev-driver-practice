@@ -11,16 +11,12 @@
  *
  *  History:     ysh  7-17-2016          Create
  *************************************************************/
-
-
 #ifndef __OLED_SSD1308_SPI_H
 #define __OLED_SSD1308_SPI_H
-
 
 #include <linux/types.h>
 #include <linux/semaphore.h>
 #include <linux/ioctl.h>
-
 
 struct oled_platform_data_t {
 	struct semaphore sem;
@@ -40,15 +36,13 @@ struct oled_platform_data_t {
         u8 *fb_rotate;
 };
 
-
 void oled_reset(void);
 void oled_on(void);
 void oled_off(void);
 void oled_paint(u8 byte);
 void oled_flush(void);
-void oled_init(struct oled_platform_data_t *);
+void oled_init(struct oled_platform_data_t*);
 void oled_ssd1308_create_class_attr(void);
 void oled_ssd1308_destroy_class_attr(void);
-
 
 #endif /* __OLED_SSD1308_SPI_H */

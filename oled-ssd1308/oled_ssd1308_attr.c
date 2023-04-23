@@ -103,4 +103,3 @@ void oled_ssd1308_destroy_class_attr()
         class_remove_file(oled_class, &class_attr_rotate);
 	class_destroy(oled_class);
 }
-
